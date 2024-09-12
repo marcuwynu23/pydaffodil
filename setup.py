@@ -7,7 +7,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="pydaffodil",
-    version="1.0.4",
+    version="1.0.6",
     description="A reusable deployment framework for Python.",
     long_description=long_description,  # Use README.md for the long description
     long_description_content_type="text/markdown",  # Ensure content is treated as markdown
@@ -17,7 +17,8 @@ setup(
     install_requires=[
         "paramiko",
         "tqdm",
-        "colorama"
+        "colorama",
+        "shutil"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

@@ -5,6 +5,7 @@ from paramiko import SSHClient
 from tqdm import tqdm
 import ctypes
 from colorama import init, Fore
+import shutil
 
 # Initialize colorama for colored terminal output
 init(autoreset=True)
@@ -55,13 +56,30 @@ class Daffodil:
             print(f"{Fore.RED}deploy: You do not have Administrator rights to run this script! Please re-run as an Administrator.")
             exit()
 
+
+   def check_scp_installed(self):
+    """Check if SCP is installed on the system."""
+    scp_path = shutil.which('scp')
+    if not scp_path:
+        print(f"{Fore.RED}deploy: SCP is not installed on this system.")
+        # Suggest installation methods based on the operating system
+        if os.name == 'posix':  # Linux or macOS
+            print(f"{Fore.YELLOW}deploy: On Linux, you can install SCP with: sudo apt-get install openssh-client")
+            print(f"{Fore.YELLOW}deploy: On macOS, SCP is usually pre-installed. If not, install OpenSSH: brew install openssh")
+        elif os.name == 'nt':  # Windows
+            print(f"{Fore.YELLOW}deploy: On Windows, you can install SCP by enabling OpenSSH Client via Windows Features.")
+        exit()
+
     def transfer_files(self, local_path, destination_path=None):
         """
-        Transfer files using command-line SCP with a progress bar.
+        Transfer files and directories recursively using command-line SCP with a progress bar.
 
         :param local_path: The local path from which files will be transferred.
         :param destination_path: The destination path on the remote server. Defaults to self.remote_path if not provided.
         """
+        # Check if SCP is installed
+        self.check_scp_installed()
+
         # Use destination_path if provided, otherwise fall back to remote_path
         remote_target_path = destination_path if destination_path else self.remote_path
 
@@ -72,14 +90,23 @@ class Daffodil:
                 if not any(exclude in file_path for exclude in self.exclude_list):
                     files_to_transfer.append(file_path)
 
+        # Add the -r flag to SCP for recursive transfer
         with tqdm(total=len(files_to_transfer), desc="Transferring Files", unit="file") as pbar:
-            for file_path in files_to_transfer:
-                print(f"{Fore.CYAN}deploy: Copying: {file_path}")
-                # Use the remote_target_path for the SCP command
-                scp_command = f"scp \"{file_path}\" {self.remote_user}@{self.remote_host}:{remote_target_path}"
-                self.run_command(scp_command)
-                pbar.update(1)
+            for dirpath, dirnames, filenames in os.walk(local_path):
+                for dirname in dirnames:
+                    dir_full_path = os.path.join(dirpath, dirname)
+                    if not any(exclude in dir_full_path for exclude in self.exclude_list):
+                        print(f"{Fore.CYAN}deploy: Copying directory: {dir_full_path}")
+                        scp_command = f"scp -r \"{dir_full_path}\" {self.remote_user}@{self.remote_host}:{remote_target_path}"
+                        self.run_command(scp_command)
 
+                for file in filenames:
+                    file_path = os.path.join(dirpath, file)
+                    if not any(exclude in file_path for exclude in self.exclude_list):
+                        print(f"{Fore.CYAN}deploy: Copying file: {file_path}")
+                        scp_command = f"scp \"{file_path}\" {self.remote_user}@{self.remote_host}:{remote_target_path}"
+                        self.run_command(scp_command)
+                    pbar.update(1)
 
     def deploy(self, steps):
         """
