@@ -9,7 +9,7 @@ from colorama import init, Fore
 # Initialize colorama for colored terminal output
 init(autoreset=True)
 
-class DaffodilCLI:
+class Daffodil:
     def __init__(self, remote_user, remote_host, remote_path, scp_ignore=".scpignore"):
         """
         Initialize the DaffodilCLI deployment framework.

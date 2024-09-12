@@ -1,23 +1,24 @@
- 
 from setuptools import setup, find_packages
+from pathlib import Path
+
+# Read the contents of your README file
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 setup(
-    name="daffodil-cli",
-    version="1.0.0",
+    name="pydaffodil",
+    version="1.0.3",
     description="A reusable deployment framework for Python.",
-    author="Your Name",
-    author_email="your.email@example.com",
+    long_description=long_description,  # Use README.md for the long description
+    long_description_content_type="text/markdown",  # Ensure content is treated as markdown
+    author="Mark Wayne Menorca",
+    author_email="marcuwynu23@gmail.com",
     packages=find_packages(),
     install_requires=[
         "paramiko",
         "tqdm",
         "colorama"
     ],
-    entry_points={
-        "console_scripts": [
-            "daffodil-cli = daffodil_cli.deploy:main",
-        ],
-    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
