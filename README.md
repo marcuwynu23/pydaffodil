@@ -1,6 +1,6 @@
-# Daffodil CLI
+# PyDaffodil
 
-`daffodil-cli` is a reusable deployment framework for Python, designed to simplify the process of deploying applications to remote vps servers.
+`pydaffodil` is a reusable deployment framework for Python, designed to simplify the process of deploying applications to remote vps servers.
 
 ## Features
 
@@ -13,16 +13,16 @@
 ## Installation
 
 ```bash
-pip install daffodil-cli
+pip install pydaffodil
 
 ```
 
 ## Usage
 
 ```py
-from daffodil import DaffodilCLI
+from pydaffodil import Daffodil
 
-cli = DaffodilCLI(remote_user="root", remote_host="123.221.11.243", remote_path="/root/prod/bccs")
+cli = Daffodil(remote_user="root", remote_host="123.221.11.243", remote_path="/root/prod/bccs")
 
 steps = [
     {"step": "Build the project", "command": lambda: cli.run_command("npm run build")},
