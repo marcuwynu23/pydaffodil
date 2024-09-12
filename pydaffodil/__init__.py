@@ -1,2 +1,2 @@
-from .core import DaffodilCLI
+from .core import Daffodil
 
