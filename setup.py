@@ -17,8 +17,7 @@ setup(
     install_requires=[
         "paramiko",
         "tqdm",
-        "colorama",
-        "shutil"
+        "colorama"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

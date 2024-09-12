@@ -56,19 +56,18 @@ class Daffodil:
             print(f"{Fore.RED}deploy: You do not have Administrator rights to run this script! Please re-run as an Administrator.")
             exit()
 
-
-   def check_scp_installed(self):
-    """Check if SCP is installed on the system."""
-    scp_path = shutil.which('scp')
-    if not scp_path:
-        print(f"{Fore.RED}deploy: SCP is not installed on this system.")
-        # Suggest installation methods based on the operating system
-        if os.name == 'posix':  # Linux or macOS
-            print(f"{Fore.YELLOW}deploy: On Linux, you can install SCP with: sudo apt-get install openssh-client")
-            print(f"{Fore.YELLOW}deploy: On macOS, SCP is usually pre-installed. If not, install OpenSSH: brew install openssh")
-        elif os.name == 'nt':  # Windows
-            print(f"{Fore.YELLOW}deploy: On Windows, you can install SCP by enabling OpenSSH Client via Windows Features.")
-        exit()
+    def check_scp_installed(self):
+        """Check if SCP is installed on the system."""
+        scp_path = shutil.which('scp')
+        if not scp_path:
+            print(f"{Fore.RED}deploy: SCP is not installed on this system.")
+            # Suggest installation methods based on the operating system
+            if os.name == 'posix':  # Linux or macOS
+                print(f"{Fore.YELLOW}deploy: On Linux, you can install SCP with: sudo apt-get install openssh-client")
+                print(f"{Fore.YELLOW}deploy: On macOS, SCP is usually pre-installed. If not, install OpenSSH: brew install openssh")
+            elif os.name == 'nt':  # Windows
+                print(f"{Fore.YELLOW}deploy: On Windows, you can install SCP by enabling OpenSSH Client via Windows Features.")
+            exit()
 
     def transfer_files(self, local_path, destination_path=None):
         """
