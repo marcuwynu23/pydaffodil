@@ -82,30 +82,25 @@ class Daffodil:
         # Use destination_path if provided, otherwise fall back to remote_path
         remote_target_path = destination_path if destination_path else self.remote_path
 
+        # Collect files to transfer, excluding the ones in the exclude_list
         files_to_transfer = []
-        for dirpath, dirnames, filenames in os.walk(local_path):
+        for dirpath, _, filenames in os.walk(local_path):
             for file in filenames:
                 file_path = os.path.join(dirpath, file)
                 if not any(exclude in file_path for exclude in self.exclude_list):
                     files_to_transfer.append(file_path)
 
-        # Add the -r flag to SCP for recursive transfer
+        # Transfer only the content (files and folders) inside the local_path
         with tqdm(total=len(files_to_transfer), desc="Transferring Files", unit="file") as pbar:
-            for dirpath, dirnames, filenames in os.walk(local_path):
-                for dirname in dirnames:
-                    dir_full_path = os.path.join(dirpath, dirname)
-                    if not any(exclude in dir_full_path for exclude in self.exclude_list):
-                        print(f"{Fore.CYAN}deploy: Copying directory: {dir_full_path}")
-                        scp_command = f"scp -r \"{dir_full_path}\" {self.remote_user}@{self.remote_host}:{remote_target_path}"
-                        self.run_command(scp_command)
+            # Transfer the contents of the local directory (excluding the local directory itself)
+            scp_command = f"scp -r {local_path}/* {self.remote_user}@{self.remote_host}:{remote_target_path}"
+            self.run_command(scp_command)
+            
+            # Update the progress bar for each transferred file
+            for _ in files_to_transfer:
+                pbar.update(1)
 
-                for file in filenames:
-                    file_path = os.path.join(dirpath, file)
-                    if not any(exclude in file_path for exclude in self.exclude_list):
-                        print(f"{Fore.CYAN}deploy: Copying file: {file_path}")
-                        scp_command = f"scp \"{file_path}\" {self.remote_user}@{self.remote_host}:{remote_target_path}"
-                        self.run_command(scp_command)
-                    pbar.update(1)
+
 
     def deploy(self, steps):
         """
