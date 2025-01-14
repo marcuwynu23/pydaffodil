@@ -1,5 +1,13 @@
+<div align="center">
+  <h1> PyDaffodil </h1>
+</div>
 
-# PyDaffodil
+<p align="center">
+  <img src="https://img.shields.io/github/stars/marcuwynu23/pydaffodil.svg" alt="Stars Badge"/>
+  <img src="https://img.shields.io/github/forks/marcuwynu23/pydaffodil.svg" alt="Forks Badge"/>
+  <img src="https://img.shields.io/github/issues/marcuwynu23/pydaffodil.svg" alt="Issues Badge"/>
+  <img src="https://img.shields.io/github/license/marcuwynu23/pydaffodil.svg" alt="License Badge"/>
+</p>
 
 `pydaffodil` is a reusable deployment framework for Python, designed to simplify the process of deploying applications to remote VPS servers.
 
