@@ -13,13 +13,33 @@
 
 ## Installation
 
-```bash
-pip install pydaffodil
-```
+To install `pydaffodil`, follow these steps:
+
+1. **Install Python**: Make sure you have Python 3.6+ installed. You can download it from [python.org](https://www.python.org/downloads/).
+   
+2. **Install PyDaffodil**:
+
+   You can install `pydaffodil` from PyPI using `pip`:
+
+   ```bash
+   pip install pydaffodil
+   ```
+
+3. **Verify Installation**:
+
+   After installation, you can verify it by importing `pydaffodil` in your Python script or in the Python interpreter:
+
+   ```python
+   from pydaffodil import Daffodil
+   ```
+
+   If no errors are raised, the installation was successful.
 
 ## Usage
 
-```py
+Here's an example of how to use `pydaffodil` for deployment:
+
+```python
 from pydaffodil import Daffodil
 
 cli = Daffodil(remote_user="root", remote_host="123.221.11.243", remote_path="/root/prod/bccs")
@@ -39,6 +59,7 @@ cli.deploy(steps)
 To republish this project to PyPI after making changes, follow these steps:
 
 ### 1. **Update the Version Number**
+
 In order to upload a new version to PyPI, you must increment the version number in the `setup.py` file. For example, if the current version is `1.0.0`, change it to `1.0.1`:
 
 ```python

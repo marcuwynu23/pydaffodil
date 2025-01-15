@@ -11,7 +11,7 @@ import shutil
 init(autoreset=True)
 
 class Daffodil:
-    def __init__(self, remote_user, remote_host, remote_path=None, scp_ignore=".scpignore"):
+    def __init__(self, remote_user, remote_host, remote_path=None,port=22, scp_ignore=".scpignore"):
         """
         Initialize the DaffodilCLI deployment framework.
 
@@ -22,10 +22,11 @@ class Daffodil:
         """
         self.remote_user = remote_user
         self.remote_host = remote_host
+        self.port = port
         self.ssh_client = SSHClient()
         self.ssh_client.load_system_host_keys()
         self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.ssh_client.connect(self.remote_host, username=self.remote_user)
+        self.ssh_client.connect(self.remote_host, username=self.remote_user, port=self.port)
 
         # Set remote_path to the current directory if not provided
         self.remote_path = remote_path if remote_path else self.get_remote_current_directory()
