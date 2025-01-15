@@ -12,8 +12,6 @@
 `pydaffodil` is a reusable deployment framework for Python, designed to simplify the process of deploying applications to remote VPS servers.
 
 ## Features
-
-- Check for admin privileges
 - Run shell commands
 - Transfer files using SCP
 - Execute SSH commands
@@ -61,6 +59,8 @@ steps = [
 
 cli.deploy(steps)
 ```
+
+Note: require admin privileges to run the script.
 
 ## How to Republish to PyPI
 
