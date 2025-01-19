@@ -83,23 +83,25 @@ class Daffodil:
         # Use destination_path if provided, otherwise fall back to remote_path
         remote_target_path = destination_path if destination_path else self.remote_path
 
-        # Collect files to transfer, excluding the ones in the exclude_list
+        # Collect files to transfer, including hidden files
         files_to_transfer = []
-        for dirpath, _, filenames in os.walk(local_path):
+        for dirpath, dirnames, filenames in os.walk(local_path):
+            # Include hidden directories in the traversal
+            dirnames[:] = [d for d in dirnames if not d.startswith('.')]
             for file in filenames:
                 file_path = os.path.join(dirpath, file)
-                if not any(exclude in file_path for exclude in self.exclude_list):
-                    files_to_transfer.append(file_path)
+                files_to_transfer.append(file_path)
 
-        # Transfer only the content (files and folders) inside the local_path
+        # Transfer the contents of the local directory (including hidden files)
         with tqdm(total=len(files_to_transfer), desc="Transferring Files", unit="file") as pbar:
-            # Transfer the contents of the local directory (excluding the local directory itself)
-            scp_command = f"scp -r {local_path}/* {self.remote_user}@{self.remote_host}:{remote_target_path}"
+            # Transfer the contents of the local directory (including hidden files)
+            scp_command = f"scp -rp {local_path}/. {self.remote_user}@{self.remote_host}:{remote_target_path}"
             self.run_command(scp_command)
             
             # Update the progress bar for each transferred file
             for _ in files_to_transfer:
                 pbar.update(1)
+
 
 
 
