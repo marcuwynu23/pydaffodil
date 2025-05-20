@@ -3,3 +3,4 @@ dist/*
 .scpignore
 .pyc
 .pycache
+__pycache__

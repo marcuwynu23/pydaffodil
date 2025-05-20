@@ -12,6 +12,7 @@
 `pydaffodil` is a reusable deployment framework for Python, designed to simplify the process of deploying applications to remote VPS servers.
 
 ## Features
+
 - Run shell commands
 - Transfer files using SCP
 - Execute SSH commands
@@ -22,7 +23,6 @@
 To install `pydaffodil`, follow these steps:
 
 1. **Install Python**: Make sure you have Python 3.6+ installed. You can download it from [python.org](https://www.python.org/downloads/).
-   
 2. **Install PyDaffodil**:
 
    You can install `pydaffodil` from PyPI using `pip`:
@@ -74,12 +74,20 @@ In order to upload a new version to PyPI, you must increment the version number 
 # setup.py
 setup(
     name="pydaffodil",
-    version="1.0.1",  # Increment the version number here
+    version="1.1.3",  # Increment the version number here
     # Other metadata...
 )
 ```
 
-### 2. **Build the Package**
+### 2. **Install tool to used**
+
+Run the following to install the build module
+
+```bash
+pip install build twine
+```
+
+### 3. **Build the Package**
 
 Run the following command to build both the source distribution (`.tar.gz`) and the wheel (`.whl`) files:
 
@@ -89,7 +97,7 @@ python -m build
 
 This will generate the package files in the `dist/` folder.
 
-### 3. **Upload the Package to PyPI**
+### 4. **Upload the Package to PyPI**
 
 Once your package is built, you can use `twine` to upload it to PyPI. Run the following command to upload the new version:
 
@@ -99,7 +107,7 @@ twine upload dist/*
 
 You'll be prompted to enter your PyPI credentials. Make sure to have them ready.
 
-### 4. **Test Your New Release**
+### 5. **Test Your New Release**
 
 After uploading, you can verify that the new version has been successfully published by installing it using `pip`:
 
@@ -109,7 +117,7 @@ pip install --upgrade pydaffodil
 
 This will install the latest version of the package.
 
-### 5. **Re-uploading to TestPyPI (Optional)**
+### 6. **Re-uploading to TestPyPI (Optional)**
 
 If you'd like to test the release before publishing it to the official PyPI, you can upload to TestPyPI instead:
 
