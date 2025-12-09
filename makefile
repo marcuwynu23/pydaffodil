@@ -2,6 +2,10 @@
 
 all: publish clean
 
+build:
+	@echo "building package..."
+	python -m build
+	@echo "done"
 
 publish:
 	@echo "building package..."
