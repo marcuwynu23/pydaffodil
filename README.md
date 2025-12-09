@@ -294,12 +294,36 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ## 📝 Publishing to PyPI
 
-To publish a new version to PyPI:
+### Automated Publishing (Recommended)
+
+This project uses GitHub Actions to automatically publish to PyPI when a new release is created.
+
+**Setup:**
+1. Go to your PyPI account settings: https://pypi.org/manage/account/
+2. Create an API token: https://pypi.org/manage/account/token/
+3. Add the token as a GitHub secret:
+   - Go to your repository → Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `PYPI_API_TOKEN`
+   - Value: Your PyPI API token (starts with `pypi-`)
+
+**Publishing:**
+1. **Update version** in `setup.py`
+2. **Commit and push** your changes
+3. **Create a new release** on GitHub (the workflow will automatically publish to PyPI)
+
+Alternatively, you can trigger the workflow manually:
+- Go to Actions → "Publish to PyPI" → Run workflow
+
+### Manual Publishing
+
+To publish manually:
 
 1. **Update version** in `setup.py`
 2. **Install build tools**: `pip install build twine`
 3. **Build package**: `python -m build`
-4. **Upload**: `twine upload dist/*`
+4. **Check package**: `twine check dist/*`
+5. **Upload**: `twine upload dist/*`
 
 For testing, use TestPyPI:
 ```bash

@@ -3,7 +3,7 @@ from pathlib import Path
 
 # Read the contents of your README file
 this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
+long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="pydaffodil",
@@ -52,7 +52,6 @@ setup(
         "Topic :: System :: Installation/Setup",
         "Topic :: Internet :: File Transfer Protocol (FTP)",
         "Topic :: System :: Archiving :: Packaging",
-        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
@@ -67,6 +66,7 @@ setup(
         "Operating System :: POSIX :: Linux",
         "Environment :: Console",
     ],
+    license="MIT",
     python_requires='>=3.6',
     zip_safe=False,
 )
