@@ -3,9 +3,10 @@ import subprocess
 import paramiko
 from paramiko import SSHClient, RSAKey, DSSKey, ECDSAKey, Ed25519Key
 from tqdm import tqdm
-import ctypes
 from colorama import init, Fore
 import shutil
+import tempfile
+import platform
 
 # Initialize colorama for colored terminal output
 init(autoreset=True)
@@ -122,19 +123,6 @@ class Daffodil:
             raise Exception(stderr.decode('utf-8'))
         print(f"{Fore.GREEN}deploy: {stdout.decode('utf-8')}")
 
-    def check_admin(self):
-        """Check for admin privileges."""
-        try:
-            if os.name == 'nt':  # Check for Windows
-                is_admin = ctypes.windll.shell32.IsUserAnAdmin() != 0
-            else:  # Assume Unix-like system
-                is_admin = (os.geteuid() == 0)
-        except AttributeError:
-            is_admin = False
-        if not is_admin:
-            print(f"{Fore.RED}deploy: You do not have Administrator rights to run this script! Please re-run as an Administrator.")
-            exit()
-
     def check_scp_installed(self):
         """Check if SCP is installed on the system."""
         scp_path = shutil.which('scp')
@@ -150,7 +138,8 @@ class Daffodil:
 
     def transfer_files(self, local_path, destination_path=None):
         """
-        Transfer files and directories recursively using command-line SCP with a progress bar.
+        Transfer files and directories recursively by creating an archive, transferring it,
+        and unarchiving on the remote server. Cross-platform compatible (Windows, macOS, Linux).
 
         :param local_path: The local path from which files will be transferred.
         :param destination_path: The destination path on the remote server. Defaults to self.remote_path if not provided.
@@ -161,24 +150,110 @@ class Daffodil:
         # Use destination_path if provided, otherwise fall back to remote_path
         remote_target_path = destination_path if destination_path else self.remote_path
 
-        # Collect files to transfer, including hidden files
-        files_to_transfer = []
-        for dirpath, dirnames, filenames in os.walk(local_path):
-            # Include hidden directories in the traversal
-            dirnames[:] = [d for d in dirnames if not d.startswith('.')]
-            for file in filenames:
-                file_path = os.path.join(dirpath, file)
-                files_to_transfer.append(file_path)
+        # Validate local path exists
+        if not os.path.exists(local_path):
+            print(f"{Fore.RED}deploy: Local path does not exist: {local_path}")
+            raise FileNotFoundError(f"Local path does not exist: {local_path}")
 
-        # Transfer the contents of the local directory (including hidden files)
-        with tqdm(total=len(files_to_transfer), desc="Transferring Files", unit="file") as pbar:
-            # Transfer the contents of the local directory (including hidden files)
-            scp_command = f"scp -rp {local_path}/. {self.remote_user}@{self.remote_host}:{remote_target_path}"
-            self.run_command(scp_command)
+        # Create a temporary directory for the archive
+        temp_dir = tempfile.gettempdir()
+        archive_name = f"pydaffodil_transfer_{os.path.basename(os.path.abspath(local_path))}"
+        archive_path = os.path.join(temp_dir, archive_name)
+        archive_full_path = None
 
-            # Update the progress bar for each transferred file
-            for _ in files_to_transfer:
+        try:
+            # Step 1: Create archive using shutil (cross-platform)
+            print(f"{Fore.YELLOW}deploy: Creating archive from {local_path}...")
+            with tqdm(desc="Creating archive", unit="file") as pbar:
+                # Determine archive format based on platform
+                # Use 'zip' for maximum cross-platform compatibility
+                archive_format = 'zip'
+                archive_full_path = shutil.make_archive(archive_path, archive_format, local_path)
                 pbar.update(1)
+            
+            print(f"{Fore.GREEN}deploy: Archive created: {archive_full_path}")
+
+            # Step 2: Transfer the archive
+            print(f"{Fore.YELLOW}deploy: Transferring archive to remote server...")
+            remote_archive_path = f"{remote_target_path}/{os.path.basename(archive_full_path)}"
+            
+            with tqdm(desc="Transferring archive", unit="file") as pbar:
+                scp_command = f"scp -p {archive_full_path} {self.remote_user}@{self.remote_host}:{remote_archive_path}"
+                self.run_command(scp_command)
+                pbar.update(1)
+            
+            print(f"{Fore.GREEN}deploy: Archive transferred successfully")
+
+            # Step 3: Unarchive on remote server (cross-platform)
+            print(f"{Fore.YELLOW}deploy: Extracting archive on remote server...")
+            
+            # Try to detect remote OS and use appropriate extraction command
+            # Use Python's shutil for maximum cross-platform compatibility
+            # This works on Windows, macOS, and Linux
+            python_cmd = "python3"
+            # Try python3 first, fallback to python
+            check_python3 = "which python3 || which python"
+            stdin_check, stdout_check, stderr_check = self.ssh_client.exec_command(check_python3)
+            python_available = stdout_check.read().decode().strip()
+            
+            if python_available:
+                python_cmd = python_available.split('\n')[0]  # Get first available Python
+            
+            # Escape paths for shell command
+            escaped_archive = remote_archive_path.replace("'", "'\"'\"'")
+            escaped_target = remote_target_path.replace("'", "'\"'\"'")
+            
+            # Use Python's shutil for cross-platform extraction
+            extract_command = (
+                f"{python_cmd} -c "
+                f"\"import shutil, os, sys; "
+                f"try: "
+                f"  shutil.unpack_archive('{escaped_archive}', '{escaped_target}', 'zip'); "
+                f"  os.remove('{escaped_archive}'); "
+                f"  sys.exit(0); "
+                f"except Exception as e: "
+                f"  print(f'Error: {{e}}', file=sys.stderr); "
+                f"  sys.exit(1)\""
+            )
+            
+            # Alternative: try unzip command first (faster on Linux/macOS)
+            stdin_uname, stdout_uname, stderr_uname = self.ssh_client.exec_command("uname -s 2>/dev/null || echo 'unknown'")
+            remote_os = stdout_uname.read().decode().strip().lower()
+            
+            if remote_os and remote_os != 'unknown' and 'windows' not in remote_os:
+                # Try unzip command first (faster)
+                check_unzip = "which unzip"
+                stdin_check, stdout_check, stderr_check = self.ssh_client.exec_command(check_unzip)
+                unzip_available = stdout_check.read().decode().strip()
+                
+                if unzip_available:
+                    # Use unzip command (faster for Linux/macOS)
+                    extract_command = f"cd {remote_target_path} && unzip -o {remote_archive_path} && rm -f {remote_archive_path}"
+            
+            stdin, stdout, stderr = self.ssh_client.exec_command(extract_command)
+            exit_status = stdout.channel.recv_exit_status()
+            
+            if exit_status == 0:
+                print(f"{Fore.GREEN}deploy: Archive extracted successfully on remote server")
+            else:
+                error_msg = stderr.read().decode()
+                stdout_msg = stdout.read().decode()
+                if not error_msg:
+                    error_msg = stdout_msg
+                print(f"{Fore.RED}deploy: Failed to extract archive on remote server: {error_msg}")
+                raise Exception(f"Failed to extract archive: {error_msg}")
+
+        except Exception as e:
+            print(f"{Fore.RED}deploy: Error during file transfer: {e}")
+            raise
+        finally:
+            # Step 4: Clean up local archive
+            if archive_full_path and os.path.exists(archive_full_path):
+                try:
+                    os.remove(archive_full_path)
+                    print(f"{Fore.GREEN}deploy: Local archive cleaned up")
+                except Exception as e:
+                    print(f"{Fore.YELLOW}deploy: Warning: Could not remove local archive: {e}")
 
     def deploy(self, steps):
         """
@@ -187,8 +262,6 @@ class Daffodil:
         :param steps: A list of deployment steps, where each step is a dictionary
                       with 'step' (description) and 'command' (lambda function).
         """
-        self.check_admin()
-
         for i, step in enumerate(steps, start=1):
             print(f"{Fore.YELLOW}deploy: Step {i}/{len(steps)}: {step['step']}")
             tqdm.write(f"{Fore.YELLOW}deploy: Executing: {step['step']}")
