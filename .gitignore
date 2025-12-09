@@ -4,3 +4,4 @@ dist/*
 .pyc
 .pycache
 __pycache__
+devenv/
