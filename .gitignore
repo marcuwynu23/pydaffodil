@@ -5,3 +5,5 @@ dist/*
 .pycache
 __pycache__
 devenv/
+.env
+!.env.example
