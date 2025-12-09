@@ -2,8 +2,10 @@ bcrypt==5.0.0
 cffi==2.0.0
 colorama==0.4.6
 cryptography==46.0.3
+dotenv==0.9.9
 invoke==2.2.1
 paramiko==4.0.0
 pycparser==2.23
 PyNaCl==1.6.1
+python-dotenv==1.2.1
 tqdm==4.67.1
