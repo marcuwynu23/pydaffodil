@@ -887,16 +887,19 @@ class Daffodil:
                 finally:
                     self.close()
             if ok == 0:
-                raise RuntimeError(f"Inventory deployment failed: {failed} host(s) unreachable.")
+                print(f"{Fore.RED}deploy: Inventory deployment failed ({failed} host(s) unreachable).")
+                return False
             if failed:
                 print(f"{Fore.YELLOW}deploy: Inventory deployment completed with errors ({ok} ok, {failed} failed).")
-            else:
-                print(f"{Fore.GREEN}deploy: Inventory deployment completed successfully ({ok} host(s)).")
-            return
+                return False
+
+            print(f"{Fore.GREEN}deploy: Inventory deployment completed successfully ({ok} host(s)).")
+            return True
 
         self._execute_steps(steps, prefix="")
         self.close()
         print(f"{Fore.GREEN}deploy: Deployment completed successfully.")
+        return True
 
     def _execute_steps(self, steps, prefix=""):
         """Execute deployment steps without closing the SSH connection."""
