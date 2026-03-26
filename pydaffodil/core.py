@@ -7,9 +7,152 @@ from colorama import init, Fore
 import shutil
 import tempfile
 import platform
+import time
+import re
 
 # Initialize colorama for colored terminal output
 init(autoreset=True)
+
+
+class _WatchSession:
+    def __init__(self, deployer, config):
+        self.deployer = deployer
+        self.config = config
+        self._last_file_snapshot = None
+        self._last_git_state = None
+        self._last_deploy_time_ms = 0
+
+    def _watched_paths(self):
+        return [os.path.abspath(path) for path in (self.config.get("paths") or [])]
+
+    def _snapshot_paths(self):
+        tracked = {}
+        for path in self._watched_paths():
+            if os.path.isfile(path):
+                try:
+                    tracked[path] = os.path.getmtime(path)
+                except OSError:
+                    continue
+                continue
+            if not os.path.isdir(path):
+                continue
+            for root, _, files in os.walk(path):
+                for filename in files:
+                    file_path = os.path.join(root, filename)
+                    try:
+                        tracked[file_path] = os.path.getmtime(file_path)
+                    except OSError:
+                        continue
+        return tracked
+
+    def _detect_file_change(self):
+        if not self.config.get("paths"):
+            return None
+        current = self._snapshot_paths()
+        if self._last_file_snapshot is None:
+            self._last_file_snapshot = current
+            return None
+        if current != self._last_file_snapshot:
+            self._last_file_snapshot = current
+            return "files"
+        return None
+
+    def _run_git(self, args):
+        process = subprocess.run(
+            ["git"] + args,
+            cwd=self.config["repo_path"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if process.returncode != 0:
+            raise Exception(process.stderr.strip() or "git command failed")
+        return process.stdout.strip()
+
+    def _branches(self):
+        branch = self.config.get("branch")
+        branches = list(self.config.get("branches") or [])
+        if branch:
+            branches.append(branch)
+        return list(dict.fromkeys(branches))
+
+    def _read_git_state(self):
+        if not self.config.get("repo_path"):
+            return None
+
+        state = {"branches": {}, "types": {}, "tags": set()}
+        for branch in self._branches():
+            try:
+                commit = self._run_git(["rev-parse", branch])
+            except Exception:
+                continue
+            state["branches"][branch] = commit
+            parent_list = self._run_git(["show", "-s", "--format=%P", commit]).split()
+            state["types"][branch] = "merge" if len(parent_list) > 1 else "commit"
+
+        if self.config.get("tags"):
+            all_tags = set(filter(None, self._run_git(["tag", "--list"]).splitlines()))
+            pattern = self.config.get("tag_pattern")
+            if pattern:
+                compiled = re.compile(pattern)
+                all_tags = {tag for tag in all_tags if compiled.search(tag)}
+            state["tags"] = all_tags
+        return state
+
+    def _detect_git_change(self):
+        if not self.config.get("repo_path"):
+            return None
+        current = self._read_git_state()
+        if self._last_git_state is None:
+            self._last_git_state = current
+            return None
+
+        events = set(self.config.get("events") or ["commit", "merge", "tag"])
+        for branch, commit in current["branches"].items():
+            prev = self._last_git_state["branches"].get(branch)
+            if prev and prev != commit:
+                event_type = current["types"].get(branch, "commit")
+                if event_type in events or "commit" in events:
+                    self._last_git_state = current
+                    return f"git:{event_type}:{branch}"
+
+        if "tag" in events and self.config.get("tags"):
+            new_tags = current["tags"] - self._last_git_state.get("tags", set())
+            if new_tags:
+                self._last_git_state = current
+                return f"git:tag:{', '.join(sorted(new_tags))}"
+
+        self._last_git_state = current
+        return None
+
+    def _can_run_deploy(self):
+        debounce_ms = self.config.get("debounce", 0)
+        now_ms = int(time.time() * 1000)
+        if now_ms - self._last_deploy_time_ms < debounce_ms:
+            return False
+        self._last_deploy_time_ms = now_ms
+        return True
+
+    def deploy(self, steps):
+        interval_ms = self.config.get("interval", 5000)
+        sleep_seconds = max(interval_ms / 1000.0, 0.2)
+
+        print(f"{Fore.CYAN}deploy: Watch mode started. Press Ctrl+C to stop.")
+        self._detect_file_change()
+        self._detect_git_change()
+
+        try:
+            while True:
+                reason = self._detect_file_change() or self._detect_git_change()
+                if reason and self._can_run_deploy():
+                    print(f"{Fore.MAGENTA}deploy: Trigger detected ({reason}).")
+                    self.deployer._execute_steps(steps)
+                    print(f"{Fore.GREEN}deploy: Watch deployment run completed.")
+                time.sleep(sleep_seconds)
+        except KeyboardInterrupt:
+            print(f"{Fore.YELLOW}deploy: Watch mode stopped by user.")
+        finally:
+            self.deployer.close()
 
 class Daffodil:
     def __init__(self, remote_user, remote_host, remote_path=None, port=22, ssh_key_path=None, ssh_key_pass=None, scp_ignore=".scpignore"):
@@ -592,6 +735,12 @@ class Daffodil:
         :param steps: A list of deployment steps, where each step is a dictionary
                       with 'step' (description) and 'command' (lambda function).
         """
+        self._execute_steps(steps)
+        self.close()
+        print(f"{Fore.GREEN}deploy: Deployment completed successfully.")
+
+    def _execute_steps(self, steps):
+        """Execute deployment steps without closing the SSH connection."""
         for i, step in enumerate(steps, start=1):
             print(f"{Fore.YELLOW}deploy: Step {i}/{len(steps)}: {step['step']}")
             tqdm.write(f"{Fore.YELLOW}deploy: Executing: {step['step']}")
@@ -601,10 +750,63 @@ class Daffodil:
                 print(f"{Fore.RED}deploy: Error in step: {step['step']} - {e}")
                 break
 
+    def close(self):
+        """Close active SSH connection if open."""
         transport = self.ssh_client.get_transport()
         if transport and transport.is_active():
             self.ssh_client.close()
-            print(f"{Fore.GREEN}deploy: Deployment completed successfully.")
+
+    def local(self, command):
+        """Alias for local shell commands."""
+        return self.run_command(command)
+
+    def ssh(self, command):
+        """Alias for remote SSH commands."""
+        return self.ssh_command(command)
+
+    def watch(
+        self,
+        paths=None,
+        debounce=None,
+        repo_path=None,
+        branch=None,
+        branches=None,
+        tags=False,
+        tag_pattern=None,
+        events=None,
+        interval=None
+    ):
+        """
+        Configure file and/or git-based deployment triggers.
+
+        Returns a watch session object that exposes deploy(steps).
+        """
+        if not paths and not repo_path:
+            raise ValueError("watch() requires at least one trigger source: paths or repo_path.")
+        if repo_path and not os.path.isdir(repo_path):
+            raise ValueError(f"repo_path does not exist or is not a directory: {repo_path}")
+        if interval is not None and interval <= 0:
+            raise ValueError("interval must be greater than 0 ms.")
+        if debounce is not None and debounce < 0:
+            raise ValueError("debounce must be 0 or greater.")
+        if events is not None:
+            valid = {"commit", "merge", "tag"}
+            invalid = set(events) - valid
+            if invalid:
+                raise ValueError(f"Invalid events: {', '.join(sorted(invalid))}")
+
+        config = {
+            "paths": paths or [],
+            "debounce": debounce if debounce is not None else 0,
+            "repo_path": os.path.abspath(repo_path) if repo_path else None,
+            "branch": branch,
+            "branches": branches or [],
+            "tags": bool(tags),
+            "tag_pattern": tag_pattern,
+            "events": events or ["commit", "merge", "tag"],
+            "interval": interval if interval is not None else 5000
+        }
+        return _WatchSession(self, config)
 
     def load_ignore_list(self):
         """Load ignore list from file. If the file doesn't exist, create it."""
