@@ -9,6 +9,7 @@ import tempfile
 import platform
 import time
 import re
+import configparser
 
 # Initialize colorama for colored terminal output
 init(autoreset=True)
@@ -155,7 +156,18 @@ class _WatchSession:
             self.deployer.close()
 
 class Daffodil:
-    def __init__(self, remote_user, remote_host, remote_path=None, port=22, ssh_key_path=None, ssh_key_pass=None, scp_ignore=".scpignore"):
+    def __init__(
+        self,
+        remote_user=None,
+        remote_host=None,
+        remote_path=None,
+        port=22,
+        ssh_key_path=None,
+        ssh_key_pass=None,
+        scp_ignore=".scpignore",
+        inventory=None,
+        group=None
+    ):
         """
         Initialize the DaffodilCLI deployment framework.
 
@@ -166,20 +178,117 @@ class Daffodil:
         :param ssh_key_path: Path to the SSH private key file (optional).
         :param ssh_key_pass: Passphrase for the SSH private key (optional, required if key is password-protected).
         :param scp_ignore: Path to the scp ignore file.
+        :param inventory: Path to an inventory.ini file defining multiple hosts (optional).
+        :param group: Inventory group name to deploy to (required if inventory is provided).
         """
+        self.inventory = inventory
+        self.group = group
+        self.inventory_hosts = []
+        self.active_host_name = None
+
         self.remote_user = remote_user
         self.remote_host = remote_host
         self.port = port
         self.ssh_client = SSHClient()
         self.ssh_key_path = self._set_default_ssh_key_path(ssh_key_path)
         self.ssh_key_pass = ssh_key_pass
-        self._connect_ssh()
 
-        # Set remote_path to the current directory if not provided
-        self.remote_path = remote_path if remote_path else self.get_remote_current_directory()
+        if self.inventory:
+            if not self.group:
+                raise ValueError("When using inventory, you must specify group=...")
+            self.inventory_hosts = self._load_inventory_hosts(self.inventory, self.group)
+            if not self.inventory_hosts:
+                raise ValueError(f"No hosts found in group [{self.group}] from inventory: {self.inventory}")
+            # In inventory mode, connect per-host during deploy() by switching context.
+            self.remote_path = remote_path
+        else:
+            if not self.remote_user or not self.remote_host:
+                raise ValueError("remote_user and remote_host are required unless inventory is provided.")
+            self._connect_ssh()
+            # Set remote_path to the current directory if not provided
+            self.remote_path = remote_path if remote_path else self.get_remote_current_directory()
 
         self.scp_ignore = scp_ignore
         self.exclude_list = self.load_ignore_list()
+
+    def _parse_inventory_host_line(self, line):
+        """
+        Parse a host line like: "host=1.2.3.4 user=deployer port=22"
+        into a dict.
+        """
+        parts = [p for p in (line or "").split() if p.strip()]
+        parsed = {}
+        for part in parts:
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            parsed[key.strip()] = value.strip()
+        return parsed
+
+    def _load_inventory_hosts(self, inventory_path, group):
+        """
+        Load hosts from an INI file section. Supports:
+
+        [webservers]
+        server1 = host=1.2.3.4 user=deployer port=22
+        server2 = host=1.2.3.5 user=ubuntu port=2222
+        """
+        if not os.path.exists(inventory_path):
+            raise ValueError(f"Inventory file not found: {inventory_path}")
+
+        parser = configparser.ConfigParser(allow_no_value=False, delimiters=("="), interpolation=None)
+        parser.optionxform = str  # preserve case for host names
+        parser.read(inventory_path)
+
+        if group not in parser.sections():
+            raise ValueError(f"Group [{group}] not found in inventory: {inventory_path}")
+
+        hosts = []
+        for host_name, rest in parser.items(group):
+            parsed = self._parse_inventory_host_line(rest)
+            host = {
+                "name": host_name,
+                "host": parsed.get("host"),
+                "user": parsed.get("user"),
+                "port": int(parsed["port"]) if parsed.get("port") else None,
+                "ssh_key_path": parsed.get("ssh_key_path"),
+                "ssh_key_pass": parsed.get("ssh_key_pass"),
+                "remote_path": parsed.get("remote_path"),
+            }
+            if not host["host"]:
+                raise ValueError(f"Inventory host '{host_name}' is missing required 'host=' value")
+            if not host["user"] and not self.remote_user:
+                raise ValueError(f"Inventory host '{host_name}' is missing 'user=' and no remote_user was provided")
+            hosts.append(host)
+        return hosts
+
+    def _switch_to_inventory_host(self, host):
+        """Switch this client to target a specific inventory host (sequential mode)."""
+        # Close any prior connection
+        try:
+            self.close()
+        except Exception:
+            pass
+
+        self.active_host_name = host.get("name")
+        self.remote_host = host.get("host")
+        self.remote_user = host.get("user") or self.remote_user
+        self.port = host.get("port") or self.port
+
+        # Host-specific SSH key overrides
+        if host.get("ssh_key_path"):
+            self.ssh_key_path = host["ssh_key_path"]
+        # If no explicit key path, keep whatever was configured on the instance.
+        if host.get("ssh_key_pass") is not None:
+            self.ssh_key_pass = host["ssh_key_pass"]
+
+        # Fresh SSH client per host
+        self.ssh_client = SSHClient()
+        self._connect_ssh(fail_hard=False, verbose=False)
+
+        # remote_path: host override > instance value > remote pwd
+        resolved_remote_path = host.get("remote_path") or self.remote_path
+        self.remote_path = resolved_remote_path if resolved_remote_path else self.get_remote_current_directory()
 
     def _set_default_ssh_key_path(self, provided_path):
         """Set the default SSH key path if none is provided."""
@@ -200,8 +309,16 @@ class Daffodil:
         return None
 
 
-    def _connect_ssh(self):
-        """Establish the SSH connection using either password or SSH key."""
+    def _connect_ssh(self, fail_hard=True, verbose=True):
+        """
+        Establish the SSH connection using either password or SSH key.
+
+        :param fail_hard: If True, exits the process on failure (legacy behavior).
+                          If False, raises an Exception so callers (e.g. inventory deploy)
+                          can continue to the next host.
+        :param verbose: If True, prints connection error messages. If False, stays quiet
+                        and only raises (useful when a caller wants to format output).
+        """
         self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
             if self.ssh_key_path:
@@ -213,28 +330,46 @@ class Daffodil:
                     self.ssh_client.connect(self.remote_host, port=self.port, username=self.remote_user, pkey=key)
                     print(f"{Fore.GREEN}deploy: Connected to {self.remote_host} using SSH key.")
                 except paramiko.PasswordRequiredException:
-                    print(f"{Fore.RED}deploy: SSH key requires a passphrase. Please provide 'ssh_key_pass'.")
-                    exit(1)
+                    if verbose:
+                        print(f"{Fore.RED}deploy: SSH key requires a passphrase. Please provide 'ssh_key_pass'.")
+                    if fail_hard:
+                        exit(1)
+                    raise
                 except paramiko.SSHException as e:
-                    print(f"{Fore.RED}deploy: Error connecting with SSH key: {e}")
-                    exit(1)
+                    if verbose:
+                        print(f"{Fore.RED}deploy: Error connecting with SSH key: {e}")
+                    if fail_hard:
+                        exit(1)
+                    raise
                 except FileNotFoundError:
-                    print(f"{Fore.RED}deploy: SSH key file not found at {self.ssh_key_path}")
-                    exit(1)
+                    if verbose:
+                        print(f"{Fore.RED}deploy: SSH key file not found at {self.ssh_key_path}")
+                    if fail_hard:
+                        exit(1)
+                    raise
             else:
                 # Prompt for password if no key is provided (less secure, but supported)
                 password = input(f"Enter password for {self.remote_user}@{self.remote_host}: ")
                 self.ssh_client.connect(self.remote_host, port=self.port, username=self.remote_user, password=password)
                 print(f"{Fore.GREEN}deploy: Connected to {self.remote_host} using password.")
         except paramiko.AuthenticationException:
-            print(f"{Fore.RED}deploy: Authentication failed for {self.remote_user}@{self.remote_host}. Check your credentials.")
-            exit(1)
+            if verbose:
+                print(f"{Fore.RED}deploy: Authentication failed for {self.remote_user}@{self.remote_host}. Check your credentials.")
+            if fail_hard:
+                exit(1)
+            raise
         except paramiko.SSHException as e:
-            print(f"{Fore.RED}deploy: Could not establish SSH connection to {self.remote_host}: {e}")
-            exit(1)
+            if verbose:
+                print(f"{Fore.RED}deploy: Could not establish SSH connection to {self.remote_host}: {e}")
+            if fail_hard:
+                exit(1)
+            raise
         except Exception as e:
-            print(f"{Fore.RED}deploy: An error occurred during SSH connection: {e}")
-            exit(1)
+            if verbose:
+                print(f"{Fore.RED}deploy: An error occurred during SSH connection: {e}")
+            if fail_hard:
+                exit(1)
+            raise
 
     def _load_ssh_key(self, key_path, password=None):
         """Load an SSH private key. Supports RSA, ECDSA, and Ed25519 key types."""
@@ -735,19 +870,43 @@ class Daffodil:
         :param steps: A list of deployment steps, where each step is a dictionary
                       with 'step' (description) and 'command' (lambda function).
         """
-        self._execute_steps(steps)
+        if self.inventory:
+            ok = 0
+            failed = 0
+            for host in self.inventory_hosts:
+                prefix = f"[{host.get('name')}] "
+                try:
+                    self._switch_to_inventory_host(host)
+                except Exception as e:
+                    print(f"{Fore.RED}deploy: {prefix}Connection failed - {e}")
+                    failed += 1
+                    continue
+                try:
+                    self._execute_steps(steps, prefix=prefix)
+                    ok += 1
+                finally:
+                    self.close()
+            if ok == 0:
+                raise RuntimeError(f"Inventory deployment failed: {failed} host(s) unreachable.")
+            if failed:
+                print(f"{Fore.YELLOW}deploy: Inventory deployment completed with errors ({ok} ok, {failed} failed).")
+            else:
+                print(f"{Fore.GREEN}deploy: Inventory deployment completed successfully ({ok} host(s)).")
+            return
+
+        self._execute_steps(steps, prefix="")
         self.close()
         print(f"{Fore.GREEN}deploy: Deployment completed successfully.")
 
-    def _execute_steps(self, steps):
+    def _execute_steps(self, steps, prefix=""):
         """Execute deployment steps without closing the SSH connection."""
         for i, step in enumerate(steps, start=1):
-            print(f"{Fore.YELLOW}deploy: Step {i}/{len(steps)}: {step['step']}")
-            tqdm.write(f"{Fore.YELLOW}deploy: Executing: {step['step']}")
+            print(f"{Fore.YELLOW}deploy: {prefix}Step {i}/{len(steps)}: {step['step']}")
+            tqdm.write(f"{Fore.YELLOW}deploy: {prefix}Executing: {step['step']}")
             try:
                 step['command']()
             except Exception as e:
-                print(f"{Fore.RED}deploy: Error in step: {step['step']} - {e}")
+                print(f"{Fore.RED}deploy: {prefix}Error in step: {step['step']} - {e}")
                 break
 
     def close(self):
