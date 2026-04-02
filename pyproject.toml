@@ -82,4 +82,8 @@ packages = ["src/pydaffodil"]
 include = [
     "/README.md",
     "/LICENSE",
+    "/GUIDELINES.md",
+    "/DOCUMENTATION.md",
+    "/CONTRIBUTING.md",
+    "/CHANGELOG.md",
 ]
