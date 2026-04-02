@@ -23,8 +23,14 @@ setup(
     install_requires=[
         "paramiko>=2.0.0",
         "tqdm>=4.60.0",
-        "colorama>=0.4.0"
+        "colorama>=0.4.0",
+        "PyYAML>=6.0.0"
     ],
+    entry_points={
+        "console_scripts": [
+            "pydaffodil=pydaffodil.cli:main",
+        ],
+    },
     keywords=[
         "deployment",
         "ssh",
