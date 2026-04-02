@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pydaffodil"
-version = "1.2.0"
+version = "1.2.1"
 description = "A cross-platform Python deployment framework for automated remote server deployments via SSH"
 readme = "README.md"
 license = { text = "MIT" }
