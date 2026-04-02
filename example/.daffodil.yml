@@ -1,0 +1,25 @@
+remotePath: /var/www/myapp
+ignoreFile: .scpignore
+verbose: false
+inventoryFile: inventory.yml
+inventoryGroup: webservers
+steps:
+  - name: Build app
+    type: local
+    command: npm run build
+  - name: Upload dist
+    type: transfer
+    localPath: dist
+    destinationPath: /var/www/myapp
+  - name: Restart app
+    type: ssh
+    command: pm2 restart myapp
+watch:
+  paths: ["./dist", "./src"]
+  repoPath: .
+  branch: main
+  events: ["commit", "merge", "tag"]
+  tags: true
+  tagPattern: "^v\\d+\\.\\d+\\.\\d+$"
+  interval: 5000
+  debounce: 2000

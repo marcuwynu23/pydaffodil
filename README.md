@@ -258,6 +258,24 @@ Execute a series of deployment steps.
 - `tqdm` >= 4.60.0 - Progress bars
 - `colorama` >= 0.4.0 - Cross-platform colored terminal output
 
+## 🧭 YAML CLI Deployment
+
+PyDaffodil now ships a CLI entrypoint that reads deployment YAML.
+
+```bash
+pydaffodil --config example/.daffodil.yml
+pydaffodil --config example/.daffodil.yml --watch
+```
+
+Use `example/.daffodil.yml` as the shared schema (supports `hosts[]` for multi-host deployments). The filename is required to be exactly `.daffodil.yml`.
+
+You can also reference a separate inventory file:
+
+```yaml
+inventoryFile: inventory.yml
+inventoryGroup: webservers
+```
+
 ## 🌍 Cross-Platform Support
 
 PyDaffodil is fully cross-platform and has been tested on:
