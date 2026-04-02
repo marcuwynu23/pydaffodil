@@ -1,19 +1,14 @@
-import importlib.util
+import os
 import sys
 
+_root = os.path.dirname(os.path.abspath(__file__))
+_src = os.path.join(_root, "..", "src")
+if _src not in sys.path:
+    sys.path.insert(0, _src)
 
-def import_from_file(module_name, file_path):
-    spec = importlib.util.spec_from_file_location(module_name, file_path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
+from pydaffodil import Daffodil
 
-
-# Usage
-module = import_from_file("Daffodil", "../pydaffodil/__init__.py")
-
-cli = module.Daffodil(
+cli = Daffodil(
     inventory="inventory.ini",
     group="webservers",
     remote_path="/root/production",

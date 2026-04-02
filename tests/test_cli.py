@@ -5,12 +5,14 @@ import tempfile
 import textwrap
 import unittest
 
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 class TestPyDaffodilCLI(unittest.TestCase):
     def run_cli(self, *args):
         return subprocess.run(
             [sys.executable, "-m", "pydaffodil.cli", *args],
-            cwd=os.path.dirname(__file__),
+            cwd=_PROJECT_ROOT,
             text=True,
             capture_output=True,
         )

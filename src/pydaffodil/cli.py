@@ -113,20 +113,21 @@ def run(config, watch_mode=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="pydaffodil YAML-based deployment CLI")
-    parser.add_argument("--config", required=False, default=".daffodil.yml", help="Path to deployment YAML file")
-    parser.add_argument("--watch", action="store_true", help="Run in watch mode")
-    args = parser.parse_args()
-    if Path(args.config).name != ".daffodil.yml":
-        raise ValueError("Config filename must be exactly '.daffodil.yml' (use example/.daffodil.yml).")
-
-    cfg = load_config(args.config)
-    run(cfg, args.watch)
-
-
-if __name__ == "__main__":
+    """Entry point for the `pydaffodil` console script and `python -m pydaffodil.cli`."""
     try:
-        main()
+        parser = argparse.ArgumentParser(description="pydaffodil YAML-based deployment CLI")
+        parser.add_argument("--config", required=False, default=".daffodil.yml", help="Path to deployment YAML file")
+        parser.add_argument("--watch", action="store_true", help="Run in watch mode")
+        args = parser.parse_args()
+        if Path(args.config).name != ".daffodil.yml":
+            raise ValueError("Config filename must be exactly '.daffodil.yml' (use example/.daffodil.yml).")
+
+        cfg = load_config(args.config)
+        run(cfg, args.watch)
     except Exception as e:
         print(f"pydaffodil CLI failed: {e}", file=sys.stderr)
         sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

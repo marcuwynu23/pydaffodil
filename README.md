@@ -288,6 +288,56 @@ inventoryGroup: webservers
 
 Contributions are welcome. Open an issue to discuss larger changes, then submit a pull request with a clear description and tests where appropriate.
 
+The library code lives under `src/pydaffodil/`.
+
+### Local setup with uv
+
+From the repository root:
+
+```bash
+uv sync
+```
+
+That creates `.venv/`, installs the project in editable mode, and pulls dev dependencies (build tools, and so on). Use `uv run …` so commands use that environment without activating the venv manually.
+
+### CLI in development
+
+Run the CLI through uv so it uses the local package:
+
+```bash
+uv run pydaffodil
+```
+
+Other equivalent entry points:
+
+```bash
+uv run python -m pydaffodil
+uv run python -m pydaffodil.cli
+```
+
+The CLI looks for a config file named **`.daffodil.yml`** in the current working directory. To try the sample config under `example/`:
+
+```bash
+uv run --directory example pydaffodil
+```
+
+Or:
+
+```bash
+cd example
+uv run pydaffodil
+```
+
+(Add `--watch` for watch mode when your YAML defines it.)
+
+### Tests
+
+From the repository root:
+
+```bash
+uv run python -m unittest discover -s tests -v
+```
+
 ---
 
 ## License
