@@ -1,6 +1,6 @@
 .PHONY: all build publish clean test cli
 
-# Dev: `make test` — unittest suite; `make cli` — local CLI (needs .daffodil.yml in cwd)
+# Dev: `make test` — unittest suite; `make cli` / `make cli ARGS="--watch"` — local CLI (optional ARGS forwarded)
 
 all: publish clean
 
@@ -20,7 +20,7 @@ test:
 	uv run python -m unittest discover -s tests -v
 
 cli:
-	uv run python -m pydaffodil
+	uv run python -m pydaffodil $(ARGS)
 
 clean:
 	@echo "cleaning up..."
