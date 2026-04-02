@@ -1,373 +1,309 @@
 <div align="center">
-  <h1>🌼 PyDaffodil</h1>
-  <p><strong>Cross-Platform Python Deployment Framework</strong></p>
-  <p>Automate remote server deployments with ease. Transfer files, execute commands, and manage deployments across Windows, macOS, and Linux.</p>
+  <h1>PyDaffodil</h1>
+  <p><strong>Cross-Platform Deployment Automation Framework for Python</strong></p>
+  <p>
+    <img src="https://img.shields.io/pypi/v/pydaffodil?color=blue&label=PyPI" alt="PyPI version"/>
+    <img src="https://img.shields.io/pypi/pyversions/pydaffodil?color=green" alt="Python versions"/>
+    <img src="https://img.shields.io/pypi/dm/pydaffodil?color=orange" alt="PyPI downloads"/>
+    <img src="https://img.shields.io/github/stars/marcuwynu23/pydaffodil.svg" alt="Stars"/>
+    <img src="https://img.shields.io/github/license/marcuwynu23/pydaffodil.svg" alt="License"/>
+  </p>
 </div>
-
-<p align="center">
-  <img src="https://img.shields.io/pypi/v/pydaffodil?color=blue&label=PyPI" alt="PyPI Version"/>
-  <img src="https://img.shields.io/pypi/pyversions/pydaffodil?color=green" alt="Python Versions"/>
-  <img src="https://img.shields.io/pypi/dm/pydaffodil?color=orange" alt="Downloads"/>
-  <img src="https://img.shields.io/github/stars/marcuwynu23/pydaffodil.svg" alt="Stars Badge"/>
-  <img src="https://img.shields.io/github/forks/marcuwynu23/pydaffodil.svg" alt="Forks Badge"/>
-  <img src="https://img.shields.io/github/issues/marcuwynu23/pydaffodil.svg" alt="Issues Badge"/>
-  <img src="https://img.shields.io/github/license/marcuwynu23/pydaffodil.svg" alt="License Badge"/>
-</p>
 
 ---
 
-## 📋 Table of Contents
+## Overview
 
-- [Overview](#overview)
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Usage Examples](#usage-examples)
-- [API Reference](#api-reference)
-- [Requirements](#requirements)
-- [Contributing](#contributing)
-- [License](#license)
+**PyDaffodil** is a lightweight, declarative deployment automation framework for Python that simplifies remote server deployments over SSH. It provides a clear, step-oriented API for local commands, remote execution, and archive-based file transfer, with optional **watch-based** triggers and **multi-host** deployments via Ansible-style **`inventory.ini`** files.
 
-## 🎯 Overview
+### Key Features
 
-**PyDaffodil** is a powerful, cross-platform Python deployment framework designed to simplify and automate the process of deploying applications to remote servers via SSH. Whether you're deploying to a VPS, cloud instance, or dedicated server, PyDaffodil provides a clean, intuitive API for managing your deployment workflows.
+- **Archive-Based File Transfer** — Packages local paths, transfers efficiently, and extracts on the remote host
+- **Cross-Platform Support** — Runs on Windows, Linux, and macOS
+- **SSH via Paramiko** — Key-based authentication (RSA, ECDSA, Ed25519, and others supported by Paramiko)
+- **Step-by-Step Execution** — Chain deployment steps with readable progress output
+- **Ignore Pattern Support** — `.scpignore` (or custom path) to exclude paths from transfers
+- **Colored Terminal Output** — Clear logs via Colorama
+- **Progress Feedback** — Transfer progress with tqdm
+- **Watch-Based Workflows (`watch()`)** — Trigger deploys on file changes and/or Git activity (commits, merges, tags)
+- **Multi-Host Deployments** — Same steps across multiple servers using `inventory.ini` groups
 
-### Key Benefits
+---
 
-- ✅ **Cross-Platform**: Works seamlessly on Windows, macOS, and Linux
-- ✅ **No Admin Required**: Runs without administrator privileges
-- ✅ **Efficient Transfers**: Automatically archives files before transfer for faster deployments
-- ✅ **Secure**: Supports SSH key and password authentication
-- ✅ **Progress Tracking**: Visual progress bars for file transfers and operations
-- ✅ **Modular**: Build reusable deployment steps with a simple, declarative API
+## Documentation and Examples
 
-## ✨ Features
+For hands-on usage, see the **`example/`** directory:
 
-### Core Capabilities
+- `example/publish.py` — Basic scripted deployment
+- `example/publish-multi.py` — Multi-host deployment with `inventory.ini`
+- `example/publish-watch.py` — File and Git–triggered deploys with `watch()`
+- `example/.daffodil.yml` — Reference schema for the YAML CLI
 
-- **🔐 Secure SSH Connections**: Connect using SSH keys (RSA, DSA, ECDSA, Ed25519) or password authentication
-- **📦 Smart File Transfer**: Automatically creates archives before transfer and extracts them on the remote server
-- **⚡ Remote Command Execution**: Execute shell commands and SSH commands on remote servers
-- **📁 Directory Management**: Create directories and manage file structures on remote servers
-- **🎨 Colored Output**: Beautiful, color-coded terminal output for better visibility
-- **📊 Progress Tracking**: Real-time progress bars for file operations
-- **🔄 Deployment Workflows**: Chain multiple deployment steps together for complex workflows
+---
 
-### Technical Features
-
-- Cross-platform archive creation and extraction (ZIP format)
-- Automatic cleanup of temporary files
-- Comprehensive error handling and reporting
-- Support for hidden files and directories
-- Configurable remote paths and SSH ports
-- Ignore file support (`.scpignore`)
-
-## 🚀 Installation
-
-### Prerequisites
-
-- Python 3.6 or higher
-- SSH access to your remote server
-- SCP installed on your local machine (usually comes with SSH)
-
-### Install from PyPI
+## Installation
 
 ```bash
 pip install pydaffodil
 ```
 
-### Verify Installation
+Requires a supported Python 3.x (see PyPI classifiers) and network access to the remote host over SSH.
 
-```python
-from pydaffodil import Daffodil
-print("PyDaffodil installed successfully!")
-```
+---
 
-## 🏃 Quick Start
-
-Here's a simple example to get you started:
+## Quick Start
 
 ```python
 from pydaffodil import Daffodil
 
-# Initialize the deployment client
-cli = Daffodil(
-    remote_user="root",
-    remote_host="your-server.com",
-    remote_path="/var/www/myapp"
-)
-
-# Define deployment steps
-steps = [
-    {"step": "Build the project", "command": lambda: cli.run_command("npm run build")},
-    {"step": "Transfer files", "command": lambda: cli.transfer_files("dist")},
-    {"step": "Restart service", "command": lambda: cli.ssh_command("sudo systemctl restart myapp")}
-]
-
-# Execute deployment
-cli.deploy(steps)
-```
-
-## 📚 Usage Examples
-
-### Basic File Transfer
-
-```python
-from pydaffodil import Daffodil
-
-cli = Daffodil(
-    remote_user="deploy",
-    remote_host="192.168.1.100",
-    remote_path="/home/deploy/app"
-)
-
-# Transfer files (automatically archived and extracted)
-cli.transfer_files("build", destination_path="/home/deploy/app/production")
-```
-
-### Using SSH Keys
-
-```python
-cli = Daffodil(
-    remote_user="deploy",
-    remote_host="example.com",
-    ssh_key_path="~/.ssh/id_rsa",
-    ssh_key_pass="your-passphrase"  # Optional, only if key is encrypted
-)
-```
-
-### Custom Port and Path
-
-```python
-cli = Daffodil(
-    remote_user="admin",
-    remote_host="server.example.com",
-    port=2222,  # Custom SSH port
-    remote_path="/opt/myapplication"
-)
-```
-
-### Complex Deployment Workflow
-
-```python
-from pydaffodil import Daffodil
-
-cli = Daffodil(
-    remote_user="root",
-    remote_host="production.example.com",
-    remote_path="/var/www/production"
+deployer = Daffodil(
+    remote_user="deployer",
+    remote_host="231.142.34.222",
+    remote_path="/var/www/myapp",
+    port=22,  # optional; default 22
 )
 
 steps = [
     {
-        "step": "Build frontend",
-        "command": lambda: cli.run_command("cd frontend && npm run build")
-    },
-    {
-        "step": "Build backend",
-        "command": lambda: cli.run_command("cd backend && npm run build")
-    },
-    {
-        "step": "Stop services",
-        "command": lambda: cli.ssh_command("sudo systemctl stop myapp")
-    },
-    {
-        "step": "Backup current deployment",
-        "command": lambda: cli.ssh_command("cp -r /var/www/production /var/www/backup/$(date +%Y%m%d_%H%M%S)")
-    },
-    {
-        "step": "Transfer frontend",
-        "command": lambda: cli.transfer_files("frontend/dist", "/var/www/production/frontend")
-    },
-    {
-        "step": "Transfer backend",
-        "command": lambda: cli.transfer_files("backend/dist", "/var/www/production/backend")
+        "step": "Transfer application files",
+        "command": lambda: deployer.transfer_files("./dist", "/var/www/myapp"),
     },
     {
         "step": "Install dependencies",
-        "command": lambda: cli.ssh_command("cd /var/www/production/backend && npm install --production")
+        "command": lambda: deployer.ssh_command(
+            "cd /var/www/myapp && npm install --production=false"
+        ),
     },
     {
-        "step": "Start services",
-        "command": lambda: cli.ssh_command("sudo systemctl start myapp")
-    }
+        "step": "Restart application",
+        "command": lambda: deployer.ssh_command("pm2 restart myapp"),
+    },
 ]
 
-cli.deploy(steps)
+deployer.deploy(steps)
 ```
 
-## 📖 API Reference
+---
 
-### `Daffodil` Class
+## API Reference
 
-#### Constructor Parameters
+### Constructor
 
-- `remote_user` (str, required): Username for SSH connection
-- `remote_host` (str, required): Hostname or IP address of the remote server
-- `remote_path` (str, optional): Default remote directory path
-- `port` (int, optional): SSH port number (default: 22)
-- `ssh_key_path` (str, optional): Path to SSH private key file
-- `ssh_key_pass` (str, optional): Passphrase for encrypted SSH keys
-- `scp_ignore` (str, optional): Path to ignore file (default: ".scpignore")
+```python
+Daffodil(
+    remote_user=None,
+    remote_host=None,
+    remote_path=None,
+    port=22,
+    ssh_key_path=None,
+    ssh_key_pass=None,
+    scp_ignore=".scpignore",
+    inventory=None,   # path to inventory.ini (multi-host mode)
+    group=None,       # inventory group name (required if inventory is set)
+)
+```
 
-#### Methods
+In **single-host** mode, `remote_user` and `remote_host` are required. In **inventory** mode, hosts are loaded from `inventory.ini` and `group` must identify the section to use.
 
-##### `transfer_files(local_path, destination_path=None)`
+### Methods
 
-Transfer files and directories to the remote server. Files are automatically archived before transfer and extracted on the remote server.
+#### `transfer_files(local_path, destination_path=None)`
 
-- `local_path` (str): Local directory or file path to transfer
-- `destination_path` (str, optional): Remote destination path (defaults to `remote_path`)
+Transfers a local file or directory to the remote server using an archive step, then extracts on the remote side. Honors `.scpignore` patterns.
 
-##### `run_command(command)`
+#### `run_command(command)`
 
-Execute a shell command on the local machine.
+Runs a shell command on the **local** machine.
 
-- `command` (str): Shell command to execute
+#### `ssh_command(command)`
 
-##### `ssh_command(command)`
+Runs a command on the **remote** server over the active SSH session.
 
-Execute a command on the remote server via SSH.
+#### `make_directory(directory_name)`
 
-- `command` (str): Command to execute on remote server
+Creates a directory on the remote server (under the configured remote context).
 
-##### `make_directory(directory_name)`
+#### `deploy(steps)`
 
-Create a directory on the remote server.
+Runs deployment **steps** in order. Each step is a `dict` with:
 
-- `directory_name` (str): Name of the directory to create
+- `step` — Human-readable label
+- `command` — Callable (typically a `lambda`) returning the operation result
 
-##### `deploy(steps)`
+In **inventory** mode, the same steps are executed **sequentially per host**.
 
-Execute a series of deployment steps.
+#### `watch(...)`
 
-- `steps` (list): List of step dictionaries, each containing:
-  - `step` (str): Description of the step
-  - `command` (callable): Lambda function or callable to execute
+Returns a watch session with a `.deploy(steps)` method. Configure file paths, Git repo path, branches, tags, events, debounce, and polling interval.
 
-## 🔧 Requirements
+```python
+deployer.watch(
+    paths=["./dist", "./src"],
+    debounce=2000,          # ms between eligible deploys after a trigger
+    repo_path=".",
+    branches=["main", "staging"],
+    tags=True,
+    tag_pattern=r"^v\d+\.\d+\.\d+$",  # regex string; optional
+    events=["commit", "merge", "tag"],
+    interval=5000,          # poll interval in ms
+).deploy(steps)
+```
 
-### System Requirements
+---
 
-- Python 3.6+
-- SCP (usually included with SSH/OpenSSH)
+## Advanced Topics
 
-### Python Dependencies
+### Archive-Based Transfer
 
-- `paramiko` >= 2.0.0 - SSH client library
-- `tqdm` >= 4.60.0 - Progress bars
-- `colorama` >= 0.4.0 - Cross-platform colored terminal output
+PyDaffodil builds an archive of the selected local content, transfers it, and extracts it remotely. This reduces round-trips and works well for larger trees and slower links.
 
-## 🧭 YAML CLI Deployment
+### Ignore Patterns (`.scpignore`)
 
-PyDaffodil now ships a CLI entrypoint that reads deployment YAML.
+Place a `.scpignore` in your project (or point `scp_ignore` at another file). Patterns exclude matching paths from transfer, similar in spirit to `.gitignore`-style workflows.
+
+### SSH Keys
+
+Provide `ssh_key_path` (and `ssh_key_pass` if the key is encrypted), or rely on Paramiko’s default key discovery where applicable.
+
+---
+
+## Best Practices
+
+### SSH Access
+
+Ensure key-based login works before automating:
+
+```bash
+ssh-keygen -t ed25519 -C "you@example.com"
+ssh-copy-id deployer@your-server
+ssh deployer@your-server
+```
+
+### Error Handling
+
+Wrap deploy scripts in `try` / `except` and exit with a non-zero status in CI.
+
+### Secrets
+
+Prefer environment variables or a secrets manager for hosts, users, and keys—not hard-coded credentials in source control.
+
+### Conditional Steps
+
+Build the `steps` list dynamically (e.g. only run migrations in production) using ordinary Python control flow.
+
+---
+
+## Configuration Options
+
+| Option          | Type    | Default         | Description |
+| --------------- | ------- | --------------- | ----------- |
+| `remote_user`   | `str`   | —               | SSH username (single-host mode) |
+| `remote_host`   | `str`   | —               | Hostname or IP (single-host mode) |
+| `remote_path`   | `str`   | auto / `.`      | Default remote base path |
+| `port`          | `int`   | `22`            | SSH port |
+| `ssh_key_path`  | `str`   | `None`          | Path to private key |
+| `ssh_key_pass`  | `str`   | `None`          | Key passphrase, if needed |
+| `scp_ignore`    | `str`   | `".scpignore"` | Ignore file path |
+| `inventory`     | `str`   | `None`          | Path to `inventory.ini` (multi-host) |
+| `group`         | `str`   | `None`          | Inventory group name (e.g. `webservers`) |
+
+---
+
+## Watch-Based CI/CD
+
+Use `watch()` to run the same `deploy(steps)` pipeline when files change or Git state updates. See `example/` for patterns; combine `paths` with `repo_path` for file + Git triggers.
+
+---
+
+## Multi-Host Deployments with `inventory.ini`
+
+Use an Ansible-style INI file to target a group of hosts with one script.
+
+### Example `inventory.ini`
+
+```ini
+[webservers]
+server1 host=231.142.34.222 user=deployer port=22
+server2 host=231.142.34.223 user=deployer
+server3 host=231.142.34.224 user=ubuntu port=2200
+```
+
+### Programmatic usage
+
+```python
+from pydaffodil import Daffodil
+
+deployer = Daffodil(
+    inventory="./inventory.ini",
+    group="webservers",
+    remote_path="/var/www/myapp",
+)
+
+deployer.deploy(steps)
+```
+
+See `example/publish-multi.py` and `example/inventory.ini` for a complete layout.
+
+---
+
+## Requirements
+
+- **Python** 3.x (see [PyPI](https://pypi.org/project/pydaffodil/) for supported versions)
+- **SSH** connectivity to the remote host
+- **Dependencies** (installed with the package): `paramiko`, `tqdm`, `colorama`
+
+---
+
+## YAML CLI Deployment
+
+PyDaffodil includes a CLI that reads `.daffodil.yml`:
 
 ```bash
 pydaffodil --config example/.daffodil.yml
 pydaffodil --config example/.daffodil.yml --watch
 ```
 
-Use `example/.daffodil.yml` as the shared schema (supports `hosts[]` for multi-host deployments). The filename is required to be exactly `.daffodil.yml`.
+The config filename must be exactly **`.daffodil.yml`**.
 
-You can also reference a separate inventory file:
+### Host resolution (CLI)
+
+Hosts are resolved in this order:
+
+1. Inline **`hosts`** in the YAML file (if present and non-empty)
+2. **`inventoryFile`** + **`inventoryGroup`** (Ansible-style `inventory.ini`)
+3. Top-level **`remoteHost` / `remoteUser`** (or snake_case equivalents) for a single default host
+
+Optional inventory reference:
 
 ```yaml
-inventoryFile: inventory.yml
+inventoryFile: inventory.ini
 inventoryGroup: webservers
 ```
 
-## 🌍 Cross-Platform Support
+---
 
-PyDaffodil is fully cross-platform and has been tested on:
+## Contributing
 
-- **Windows** 10/11
-- **macOS** (all recent versions)
-- **Linux** (Ubuntu, Debian, CentOS, etc.)
+Contributions are welcome. Open an issue to discuss larger changes, then submit a pull request with a clear description and tests where appropriate.
 
-The framework automatically handles platform-specific differences in:
-- Archive creation and extraction
-- File path handling
-- SSH key detection
-- Command execution
+---
 
-## 🔒 Security
+## License
 
-PyDaffodil prioritizes security:
+[MIT License](./LICENSE)
 
-- Supports all major SSH key types (RSA, DSA, ECDSA, Ed25519)
-- Encrypted key support with passphrase protection
-- Secure password authentication (when keys aren't available)
-- No storage of credentials in code
-- Automatic cleanup of temporary files
+---
 
-## 🤝 Contributing
+## Acknowledgments
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+- SSH: [Paramiko](https://www.paramiko.org/)
+- Progress: [tqdm](https://github.com/tqdm/tqdm)
+- Terminal colors: [Colorama](https://github.com/tartley/colorama)
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 Publishing to PyPI
-
-### Automated Publishing (Recommended)
-
-This project uses GitHub Actions to automatically publish to PyPI when a new release is created.
-
-**Setup:**
-1. Go to your PyPI account settings: https://pypi.org/manage/account/
-2. Create an API token: https://pypi.org/manage/account/token/
-3. Add the token as a GitHub secret:
-   - Go to your repository → Settings → Secrets and variables → Actions
-   - Click "New repository secret"
-   - Name: `PYPI_API_TOKEN`
-   - Value: Your PyPI API token (starts with `pypi-`)
-
-**Publishing:**
-1. **Update version** in `setup.py`
-2. **Commit and push** your changes
-3. **Create a new release** on GitHub (the workflow will automatically publish to PyPI)
-
-Alternatively, you can trigger the workflow manually:
-- Go to Actions → "Publish to PyPI" → Run workflow
-
-### Manual Publishing
-
-To publish manually:
-
-1. **Update version** in `setup.py`
-2. **Install build tools**: `pip install build twine`
-3. **Build package**: `python -m build`
-4. **Check package**: `twine check dist/*`
-5. **Upload**: `twine upload dist/*`
-
-For testing, use TestPyPI:
-```bash
-twine upload --repository-url https://test.pypi.org/legacy/ dist/*
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 👤 Author
-
-**Mark Wayne Menorca**
-
-- Email: marcuwynu23@gmail.com
-- GitHub: [@marcuwynu23](https://github.com/marcuwynu23)
-
-## 🙏 Acknowledgments
-
-- Built with [Paramiko](https://www.paramiko.org/) for SSH functionality
-- Progress bars powered by [tqdm](https://github.com/tqdm/tqdm)
-- Cross-platform colors with [Colorama](https://github.com/tartley/colorama)
+Sister projects: [JSDaffodil](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) (Node.js), [GoDaffodil](https://github.com/marcuwynu23/godaffodil) (Go).
 
 ---
 
 <div align="center">
-  <p>Made with ❤️ for developers who love automation</p>
-  <p>⭐ Star this repo if you find it useful!</p>
+  <p>Made with care by <a href="https://github.com/marcuwynu23">Mark Wayne B. Menorca</a></p>
 </div>
