@@ -1,17 +1,16 @@
 
-
 all: publish clean
 
 build:
 	@echo "building package..."
-	python -m build
+	uv build
 	@echo "done"
 
 publish:
 	@echo "building package..."
-	python -m build
+	uv build
 	@echo "publishing package..."
-	twine upload dist/*
+	uv publish
 	@echo "done"
 
 clean:
@@ -20,4 +19,3 @@ clean:
 	rm -rf build
 	rm -rf *.egg-info
 	@echo "done"
-
