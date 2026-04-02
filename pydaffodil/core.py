@@ -9,10 +9,62 @@ import tempfile
 import platform
 import time
 import re
-import configparser
-
 # Initialize colorama for colored terminal output
 init(autoreset=True)
+
+
+def parse_inventory_ini_file(inventory_path, group=None):
+    """
+    Parse an Ansible-style inventory.ini file.
+
+    Lines look like: ``name host=1.2.3.4 user=deploy port=22`` under ``[group]`` sections.
+    If ``group`` is None or empty, hosts from all sections are returned (flattened).
+    """
+    if not os.path.exists(inventory_path):
+        raise ValueError(f"Inventory file not found: {inventory_path}")
+    with open(inventory_path, "r", encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    current_group = ""
+    hosts = []
+    for raw in lines:
+        line = raw.strip()
+        if not line or line.startswith("#") or line.startswith(";"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            current_group = line[1:-1].strip()
+            continue
+        if not current_group:
+            continue
+        if group and current_group != group:
+            continue
+        parts = line.split()
+        if not parts:
+            continue
+        name = parts[0]
+        entry = {"name": name, "port": 22}
+        for p in parts[1:]:
+            if "=" not in p:
+                continue
+            key, value = p.split("=", 1)
+            key, value = key.strip(), value.strip()
+            if key == "host":
+                entry["host"] = value
+            elif key == "user":
+                entry["user"] = value
+            elif key == "port":
+                try:
+                    entry["port"] = int(value)
+                except ValueError:
+                    pass
+            elif key in ("remote_path", "remotePath"):
+                entry["remote_path"] = value
+            elif key == "ssh_key_path":
+                entry["ssh_key_path"] = value
+            elif key == "ssh_key_pass":
+                entry["ssh_key_pass"] = value
+        if entry.get("host") and entry.get("user"):
+            hosts.append(entry)
+    return hosts
 
 
 class _WatchSession:
@@ -211,56 +263,34 @@ class Daffodil:
         self.scp_ignore = scp_ignore
         self.exclude_list = self.load_ignore_list()
 
-    def _parse_inventory_host_line(self, line):
-        """
-        Parse a host line like: "host=1.2.3.4 user=deployer port=22"
-        into a dict.
-        """
-        parts = [p for p in (line or "").split() if p.strip()]
-        parsed = {}
-        for part in parts:
-            if "=" not in part:
-                continue
-            key, value = part.split("=", 1)
-            parsed[key.strip()] = value.strip()
-        return parsed
-
     def _load_inventory_hosts(self, inventory_path, group):
-        """
-        Load hosts from an INI file section. Supports:
-
-        [webservers]
-        server1 = host=1.2.3.4 user=deployer port=22
-        server2 = host=1.2.3.5 user=ubuntu port=2222
-        """
-        if not os.path.exists(inventory_path):
-            raise ValueError(f"Inventory file not found: {inventory_path}")
-
-        parser = configparser.ConfigParser(allow_no_value=False, delimiters=("="), interpolation=None)
-        parser.optionxform = str  # preserve case for host names
-        parser.read(inventory_path)
-
-        if group not in parser.sections():
-            raise ValueError(f"Group [{group}] not found in inventory: {inventory_path}")
-
-        hosts = []
-        for host_name, rest in parser.items(group):
-            parsed = self._parse_inventory_host_line(rest)
-            host = {
-                "name": host_name,
-                "host": parsed.get("host"),
-                "user": parsed.get("user"),
-                "port": int(parsed["port"]) if parsed.get("port") else None,
-                "ssh_key_path": parsed.get("ssh_key_path"),
-                "ssh_key_pass": parsed.get("ssh_key_pass"),
-                "remote_path": parsed.get("remote_path"),
-            }
-            if not host["host"]:
-                raise ValueError(f"Inventory host '{host_name}' is missing required 'host=' value")
-            if not host["user"] and not self.remote_user:
-                raise ValueError(f"Inventory host '{host_name}' is missing 'user=' and no remote_user was provided")
-            hosts.append(host)
-        return hosts
+        """Load hosts from an Ansible-style inventory.ini (see ``parse_inventory_ini_file``)."""
+        if not group:
+            raise ValueError("When using inventory, you must specify group=...")
+        hosts = parse_inventory_ini_file(inventory_path, group)
+        if not hosts:
+            raise ValueError(f"Group [{group}] not found or has no valid hosts in inventory: {inventory_path}")
+        out = []
+        for host in hosts:
+            name = host.get("name")
+            if not host.get("host"):
+                raise ValueError(f"Inventory host '{name}' is missing required 'host=' value")
+            if not host.get("user") and not self.remote_user:
+                raise ValueError(
+                    f"Inventory host '{name}' is missing 'user=' and no remote_user was provided"
+                )
+            out.append(
+                {
+                    "name": name,
+                    "host": host.get("host"),
+                    "user": host.get("user"),
+                    "port": host.get("port") if host.get("port") else None,
+                    "ssh_key_path": host.get("ssh_key_path"),
+                    "ssh_key_pass": host.get("ssh_key_pass"),
+                    "remote_path": host.get("remote_path"),
+                }
+            )
+        return out
 
     def _switch_to_inventory_host(self, host):
         """Switch this client to target a specific inventory host (sequential mode)."""

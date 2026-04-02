@@ -4,6 +4,8 @@ from pathlib import Path
 
 import yaml
 
+from .core import Daffodil, parse_inventory_ini_file
+
 def load_config(path):
     cfg_path = Path(path)
     with open(cfg_path, "r", encoding="utf-8") as f:
@@ -19,24 +21,17 @@ def load_inventory_hosts(cfg):
     inv_path = Path(inv_file)
     if not inv_path.is_absolute():
         inv_path = Path(cfg.get("__config_dir") or ".") / inv_path
-    with open(inv_path, "r", encoding="utf-8") as f:
-        inv = yaml.safe_load(f) or {}
-    if isinstance(inv.get("hosts"), list):
-        return inv.get("hosts")
-    groups = inv.get("groups") or {}
     group_name = pick(cfg, "inventoryGroup", "inventory_group")
-    if group_name and isinstance(groups.get(group_name), list):
-        return groups.get(group_name)
-    return []
+    return parse_inventory_ini_file(str(inv_path), group_name if group_name else None)
 
 
 def normalize_hosts(cfg):
-    inv_hosts = load_inventory_hosts(cfg)
-    if inv_hosts:
-        return inv_hosts
     hosts = cfg.get("hosts") or []
     if hosts:
         return hosts
+    inv_hosts = load_inventory_hosts(cfg)
+    if inv_hosts:
+        return inv_hosts
     if (cfg.get("remote_host") and cfg.get("remote_user")) or (cfg.get("remoteHost") and cfg.get("remoteUser")):
         return [
             {
@@ -88,7 +83,6 @@ def run(config, watch_mode=False):
     hosts = normalize_hosts(config)
     if not hosts:
         raise ValueError("No hosts found in YAML config.")
-    from .core import Daffodil
 
     for host in hosts:
         cli = Daffodil(

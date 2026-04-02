@@ -1,7 +1,7 @@
 remotePath: /var/www/myapp
 ignoreFile: .scpignore
 verbose: false
-inventoryFile: inventory.yml
+inventoryFile: inventory.ini
 inventoryGroup: webservers
 steps:
   - name: Build app

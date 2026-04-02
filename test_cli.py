@@ -59,17 +59,15 @@ class TestPyDaffodilCLI(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("Unsupported step type", result.stderr)
 
-    def test_cli_reads_hosts_from_inventory_yml(self):
+    def test_cli_reads_hosts_from_inventory_ini(self):
         with tempfile.TemporaryDirectory() as td:
-            inv = os.path.join(td, "inventory.yml")
+            inv = os.path.join(td, "inventory.ini")
             with open(inv, "w", encoding="utf-8") as f:
                 f.write(
                     textwrap.dedent(
                         """
-                        hosts:
-                          - name: web1
-                            host: 127.0.0.1
-                            user: deploy
+                        [webservers]
+                        web1 host=127.0.0.1 user=deploy port=22
                         """
                     ).strip()
                 )
@@ -78,7 +76,30 @@ class TestPyDaffodilCLI(unittest.TestCase):
                 f.write(
                     textwrap.dedent(
                         """
-                        inventoryFile: inventory.yml
+                        inventoryFile: inventory.ini
+                        inventoryGroup: webservers
+                        steps:
+                          - name: Invalid
+                            type: invalid
+                        """
+                    ).strip()
+                )
+            result = self.run_cli("--config", cfg)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Unsupported step type", result.stderr)
+
+    def test_cli_prefers_hosts_over_inventory_when_hosts_present(self):
+        with tempfile.TemporaryDirectory() as td:
+            cfg = os.path.join(td, ".daffodil.yml")
+            with open(cfg, "w", encoding="utf-8") as f:
+                f.write(
+                    textwrap.dedent(
+                        """
+                        hosts:
+                          - name: web1
+                            host: 127.0.0.1
+                            user: deploy
+                        inventoryFile: missing.ini
                         steps:
                           - name: Invalid
                             type: invalid
