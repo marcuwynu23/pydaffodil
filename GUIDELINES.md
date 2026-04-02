@@ -1,11 +1,13 @@
 # PyDaffodil Usage Guidelines
 
-Complete guide to deploying with PyDaffodil: API usage, **`inventory.ini`**, **`.daffodil.yml`**, **`watch()`**, and troubleshooting. For developer setup see [DOCUMENTATION.md](./DOCUMENTATION.md).
+End-user guide for deployment with PyDaffodil: API usage, **`inventory.ini`**, **`.daffodil.yml`**, **`watch()`**, and troubleshooting. For contributors and architecture, see [DOCUMENTATION.md](./DOCUMENTATION.md).
+
+Sister projects: [JSDaffodil](https://github.com/marcuwynu23/jsdaffodil) (Node.js), [GoDaffodil](https://github.com/marcuwynu23/godaffodil) (Go). Shared **`.daffodil.yml`** schema and inventory format.
 
 ## Table of contents
 
 1. [Installation](#installation)
-2. [Quick start (API)](#quick-start-api)
+2. [Quick start](#quick-start)
 3. [Configuration](#configuration)
 4. [Core operations](#core-operations)
 5. [Multi-host (`inventory.ini`)](#multi-host-inventoryini)
@@ -14,6 +16,7 @@ Complete guide to deploying with PyDaffodil: API usage, **`inventory.ini`**, **`
 8. [Ignore file (`.scpignore`)](#ignore-file-scpignore)
 9. [Best practices](#best-practices)
 10. [Troubleshooting](#troubleshooting)
+11. [Additional resources](#additional-resources)
 
 ## Installation
 
@@ -23,7 +26,7 @@ pip install pydaffodil
 
 Requires Python ≥ 3.9 (see PyPI). SSH keys are typically loaded from standard locations or via `ssh_key_path=`.
 
-## Quick start (API)
+## Quick start
 
 ```python
 from pydaffodil import Daffodil
@@ -118,17 +121,17 @@ pydaffodil --config example/.daffodil.yml --watch
 ```
 
 - Config file **basename** must be exactly **`.daffodil.yml`**.
-- **Host resolution order** (same family as JSDaffodil / GoDaffodil):
+- **Host resolution order** (same as JSDaffodil / GoDaffodil):
   1. Non-empty **`hosts`** in YAML
   2. **`inventoryFile`** + **`inventoryGroup`**
   3. Top-level **`remoteHost` / `remoteUser`** (or snake_case)
-
-Example inventory snippet:
 
 ```yaml
 inventoryFile: inventory.ini
 inventoryGroup: webservers
 ```
+
+**Go note:** GoDaffodil uses `godaffodil run --config …` (with a `run` subcommand).
 
 ## Ignore file (`.scpignore`)
 
@@ -153,6 +156,7 @@ Glob-like lines; paths matching patterns are excluded from packaged transfers. P
 
 ## Additional resources
 
-- [README.md](./README.md) — Sister projects table
-- [DOCUMENTATION.md](./DOCUMENTATION.md) — Module layout and tests
+- [README.md](./README.md) — Overview and sister projects
+- [DOCUMENTATION.md](./DOCUMENTATION.md) — Developer documentation (`src/pydaffodil/`, tests)
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — How to contribute
+- [example/](./example/) — Runnable samples and reference `.daffodil.yml`

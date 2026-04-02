@@ -7,13 +7,17 @@ Documentation for contributors and maintainers. End-user usage is covered in [GU
 1. [Project overview](#project-overview)
 2. [Repository layout](#repository-layout)
 3. [Architecture](#architecture)
-4. [Core modules](#core-modules)
-5. [Features aligned with the Daffodil family](#features-aligned-with-the-daffodil-family)
-6. [Development setup](#development-setup)
-7. [Testing](#testing)
-8. [Packaging and release](#packaging-and-release)
-9. [Extension points](#extension-points)
-10. [Code style](#code-style)
+4. [Main package (`src/pydaffodil/`)](#main-package-srcpydaffodil)
+5. [CLI (`cli.py`)](#cli-clipy)
+6. [Features aligned with the Daffodil family](#features-aligned-with-the-daffodil-family)
+7. [Development setup](#development-setup)
+8. [Testing](#testing)
+9. [Packaging and release](#packaging-and-release)
+10. [Extension points](#extension-points)
+11. [Runtime requirements](#runtime-requirements)
+12. [Code style](#code-style)
+13. [Additional resources](#additional-resources)
+14. [Questions](#questions)
 
 ## Project overview
 
@@ -28,24 +32,22 @@ pydaffodil/
 ├── LICENSE
 ├── CONTRIBUTING.md
 ├── DOCUMENTATION.md      # This file
-├── GUIDELINES.md         # Usage guide
+├── GUIDELINES.md
 ├── README.md
 ├── CHANGELOG.md
-├── pyproject.toml        # Hatchling build, metadata, optional uv lock
+├── pyproject.toml
 ├── src/
 │   └── pydaffodil/
 │       ├── __init__.py
 │       ├── __main__.py   # python -m pydaffodil
 │       ├── core.py       # Daffodil class, deploy, watch, inventory
 │       └── cli.py        # YAML-driven CLI (.daffodil.yml)
-├── tests/                # unittest suite (e.g. test_cli.py)
-├── example/              # Runnable samples and reference .daffodil.yml
-└── .github/workflows/    # CI / publish
+├── tests/
+├── example/
+└── .github/workflows/
 ```
 
 ## Architecture
-
-High-level flow:
 
 ```
 Application / CLI
@@ -57,14 +59,14 @@ Application / CLI
 └────────┬─────────┘
          │
          ├── Paramiko SSHClient
-         ├── Archive + SCP-style transfer (see core implementation)
+         ├── Archive + transfer (see core implementation)
          └── _WatchSession (watch() → deploy loop)
 ```
 
 - **Single-host mode**: `remote_user` + `remote_host` required; SSH is established in `__init__` (non-inventory path).
 - **Inventory mode**: `inventory=` + `group=` loads hosts via `parse_inventory_ini_file()`; `deploy()` iterates hosts and switches context (`_switch_to_inventory_host`).
 
-## Core modules
+## Main package (`src/pydaffodil/`)
 
 ### `core.py`
 
@@ -72,15 +74,18 @@ Application / CLI
 - **`parse_inventory_ini_file(path, group=None)`**: parses Ansible-style INI (`[section]`, lines like `name host=… user=… port=…`). Used by the class and by **`cli.py`** for YAML-driven runs.
 - **`watch(...)`**: returns **`_WatchSession`**, which exposes `.deploy(steps)` and polls file mtime and/or Git state (branches, merges, tags).
 
-### `cli.py`
-
-- Loads **`.daffodil.yml`** with PyYAML.
-- **`normalize_hosts`**: prefers inline **`hosts`**, then **`inventoryFile`** + **`inventoryGroup`**, then top-level remote user/host keys (camelCase or snake_case per `pick()`).
-- Builds step callables that invoke `Daffodil.run_command`, `ssh_command`, `transfer_files` for types `local`, `ssh`, `transfer`.
-
 ### `__main__.py`
 
-Entry for `python -m pydaffodil`; delegates to the CLI parser in `cli.py`.
+Entry for `python -m pydaffodil`; delegates to the CLI in `cli.py`.
+
+## CLI (`cli.py`)
+
+- **Invocation**: `pydaffodil --config path/to/.daffodil.yml` and optional **`--watch`**
+- **Config path**: basename must be exactly **`.daffodil.yml`**
+- Loads YAML with PyYAML; **`normalize_hosts`**: prefers inline **`hosts`**, then **`inventoryFile`** + **`inventoryGroup`**, then top-level remote user/host keys (camelCase or snake_case per `pick()`).
+- Builds step callables for types **`local`**, **`ssh`**, **`transfer`** via `run_command`, `ssh_command`, `transfer_files`.
+
+Aligned with **JSDaffodil** (`jsdaffodil --config`) and **GoDaffodil** (`godaffodil run --config`). End-user details: [GUIDELINES.md](./GUIDELINES.md).
 
 ## Features aligned with the Daffodil family
 
@@ -96,6 +101,8 @@ Entry for `python -m pydaffodil`; delegates to the CLI parser in `cli.py`.
 **Prerequisites:** Python ≥ 3.9 (see `pyproject.toml`), Git.
 
 ```bash
+git clone https://github.com/marcuwynu23/pydaffodil.git
+cd pydaffodil
 uv sync
 uv run python -m unittest discover -s tests -v
 ```
@@ -109,21 +116,27 @@ uv run pydaffodil --config .daffodil.yml
 
 ## Testing
 
-- Tests live under **`tests/`** (e.g. `test_cli.py`).
-- Run: `uv run python -m unittest discover -s tests -v`
-- Add tests for new CLI behavior, host resolution, or inventory parsing edge cases.
+```bash
+uv run python -m unittest discover -s tests -v
+```
+
+Tests live under **`tests/`** (e.g. `test_cli.py`). Add tests for CLI behavior, host resolution, or inventory parsing when changing those surfaces.
 
 ## Packaging and release
 
 - Build backend: **Hatchling** (`pyproject.toml`).
-- Publishing is typically automated via **GitHub Actions** (see `.github/workflows/publish.yml`); maintainers bump version in `pyproject.toml` and tag releases per project practice.
-- **CHANGELOG.md** should record user-visible changes.
+- Publishing: typically **GitHub Actions** (`.github/workflows/publish.yml`); bump version in `pyproject.toml`, update **CHANGELOG.md**.
 
 ## Extension points
 
-- New **step types** in the YAML CLI require updates in `cli.py` (`build_steps`, validation in `run()`).
-- New **inventory fields** may require extending `parse_inventory_ini_file` and host dict handling in `core.py` and CLI normalization.
+- New **YAML step types**: update `cli.py` (`build_steps`, validation in `run()`); keep parity with JSDaffodil/GoDaffodil when the feature is shared.
+- New **inventory fields**: extend `parse_inventory_ini_file` and host dict handling in `core.py` / CLI normalization carefully.
 - Avoid breaking changes to public `Daffodil` constructor arguments without a major version bump.
+
+## Runtime requirements
+
+- Python as specified in `pyproject.toml`
+- Network path to the remote host over SSH; keys and permissions as in [GUIDELINES.md](./GUIDELINES.md)
 
 ## Code style
 
@@ -139,4 +152,4 @@ uv run pydaffodil --config .daffodil.yml
 
 ## Questions
 
-Open an issue on GitHub or refer to sister projects’ docs for cross-language behavior.
+Open an issue on GitHub or refer to [JSDaffodil](https://github.com/marcuwynu23/jsdaffodil) / [GoDaffodil](https://github.com/marcuwynu23/godaffodil) developer docs for cross-language behavior.
