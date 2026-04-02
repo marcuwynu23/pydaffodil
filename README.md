@@ -265,6 +265,8 @@ pydaffodil --config example/.daffodil.yml --watch
 
 The config filename must be exactly **`.daffodil.yml`**.
 
+**Other official CLIs (same YAML):** [JSDaffodil](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) uses `jsdaffodil --config`; [GoDaffodil](https://github.com/marcuwynu23/godaffodil) uses `godaffodil run --config` (no other subcommands).
+
 ### Host resolution (CLI)
 
 Hosts are resolved in this order:
