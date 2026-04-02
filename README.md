@@ -14,7 +14,7 @@
 
 ## Overview
 
-**PyDaffodil** is a lightweight, declarative deployment automation framework for Python that simplifies remote server deployments over SSH. It provides a clear, step-oriented API for local commands, remote execution, and archive-based file transfer, with optional **watch-based** triggers and **multi-host** deployments via Ansible-style **`inventory.ini`** files.
+**PyDaffodil** is the **Python** implementation in the Daffodil family. It provides remote deployment over SSH with a step-oriented API, archive-based transfer, optional **`watch()`** triggers, and multi-host **`inventory.ini`** support—the same concepts as [JSDaffodil](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) (Node.js) and [GoDaffodil](https://github.com/marcuwynu23/godaffodil) (Go). See **[Sister projects](#sister-projects)** for links and CLI equivalents.
 
 ### Key Features
 
@@ -27,6 +27,33 @@
 - **Progress Feedback** — Transfer progress with tqdm
 - **Watch-Based Workflows (`watch()`)** — Trigger deploys on file changes and/or Git activity (commits, merges, tags)
 - **Multi-Host Deployments** — Same steps across multiple servers using `inventory.ini` groups
+
+---
+
+## Sister projects
+
+The **Daffodil** line shares the same ideas: SSH, archive transfer, `.scpignore`, `watch()` (files + Git), Ansible-style **`inventory.ini`**, and a shared **`.daffodil.yml`** schema for the official CLIs.
+
+| Project | Language | Install | YAML CLI |
+|---------|----------|---------|----------|
+| **JSDaffodil** | Node.js | [`@marcuwynu23/jsdaffodil`](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) · [source](https://github.com/marcuwynu23/jsdaffodil) | `jsdaffodil --config .daffodil.yml` |
+| **PyDaffodil** (this repo) | Python | [`pydaffodil`](https://pypi.org/project/pydaffodil/) · [source](https://github.com/marcuwynu23/pydaffodil) | `pydaffodil --config .daffodil.yml` |
+| **GoDaffodil** | Go | [module](https://github.com/marcuwynu23/godaffodil) | `godaffodil run --config .daffodil.yml` |
+
+Use **`--watch`** with each CLI when your YAML defines a `watch:` block (Go uses `godaffodil run … --watch`).
+
+---
+
+## Documentation
+
+| Resource | Description |
+| -------- | ----------- |
+| [GUIDELINES.md](./GUIDELINES.md) | Usage: API, `inventory.ini`, `.daffodil.yml` CLI, `watch()`, troubleshooting |
+| [DOCUMENTATION.md](./DOCUMENTATION.md) | Developers: `src/pydaffodil` layout, architecture, tests, packaging |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Contribution workflow and PR expectations |
+| [LICENSE](./LICENSE) | MIT License |
+
+Aligned with [JSDaffodil](https://github.com/marcuwynu23/jsdaffodil) (`GUIDELINES.md`, `DOCUMENTATION.md`, `CONTRIBUTING.md`).
 
 ---
 
@@ -263,9 +290,7 @@ pydaffodil --config example/.daffodil.yml
 pydaffodil --config example/.daffodil.yml --watch
 ```
 
-The config filename must be exactly **`.daffodil.yml`**.
-
-**Other official CLIs (same YAML):** [JSDaffodil](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) uses `jsdaffodil --config`; [GoDaffodil](https://github.com/marcuwynu23/godaffodil) uses `godaffodil run --config` (no other subcommands).
+The config filename must be exactly **`.daffodil.yml`**. The same schema works with **JSDaffodil** and **GoDaffodil**—see **[Sister projects](#sister-projects)**.
 
 ### Host resolution (CLI)
 
@@ -286,7 +311,7 @@ inventoryGroup: webservers
 
 ## Contributing
 
-Contributions are welcome. Open an issue to discuss larger changes, then submit a pull request with a clear description and tests where appropriate.
+See **[CONTRIBUTING.md](./CONTRIBUTING.md)** for workflow, commits, and PR expectations (aligned with [JSDaffodil](https://github.com/marcuwynu23/jsdaffodil)). Short version: open an issue for large changes, submit focused PRs with tests and doc updates.
 
 The library code lives under `src/pydaffodil/`.
 
@@ -352,7 +377,7 @@ uv run python -m unittest discover -s tests -v
 - Progress: [tqdm](https://github.com/tqdm/tqdm)
 - Terminal colors: [Colorama](https://github.com/tartley/colorama)
 
-Sister projects: [JSDaffodil](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) (Node.js), [GoDaffodil](https://github.com/marcuwynu23/godaffodil) (Go).
+Part of the **Daffodil** family with [JSDaffodil](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) and [GoDaffodil](https://github.com/marcuwynu23/godaffodil)—see **[Sister projects](#sister-projects)**.
 
 ---
 
