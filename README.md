@@ -16,6 +16,16 @@
 
 **PyDaffodil** is the **Python** implementation in the Daffodil family. It provides remote deployment over SSH with a step-oriented API, archive-based transfer, optional **`watch()`** triggers, and multi-host **`inventory.ini`** support—the same concepts as [JSDaffodil](https://www.npmjs.com/package/@marcuwynu23/jsdaffodil) (Node.js) and [GoDaffodil](https://github.com/marcuwynu23/godaffodil) (Go). See **[Sister projects](#sister-projects)** for links and CLI equivalents.
 
+### What are Daffodil tools?
+
+**Daffodil tools** are the three sibling deployment projects:
+
+- **JSDaffodil** for Node.js
+- **PyDaffodil** for Python
+- **GoDaffodil** for Go
+
+All three share the same core workflow: define deployment steps, transfer files as archives, run commands over SSH, support `.scpignore`, scale to multiple hosts using `inventory.ini`, and use the same `.daffodil.yml` schema for CLI-driven deployments.
+
 ### Key Features
 
 - **Archive-Based File Transfer** — Packages local paths, transfers efficiently, and extracts on the remote host
@@ -291,6 +301,36 @@ pydaffodil --config example/.daffodil.yml --watch
 ```
 
 The config filename must be exactly **`.daffodil.yml`**. The same schema works with **JSDaffodil** and **GoDaffodil**—see **[Sister projects](#sister-projects)**.
+
+### Example `.daffodil.yml`
+
+```yaml
+remotePath: /var/www/myapp
+ignoreFile: .scpignore
+verbose: false
+inventoryFile: inventory.ini
+inventoryGroup: webservers
+steps:
+  - name: Build app
+    type: local
+    command: npm run build
+  - name: Upload dist
+    type: transfer
+    localPath: dist
+    destinationPath: /var/www/myapp
+  - name: Restart app
+    type: ssh
+    command: pm2 restart myapp
+watch:
+  paths: ["./dist", "./src"]
+  repoPath: .
+  branch: main
+  events: ["commit", "merge", "tag"]
+  tags: true
+  tagPattern: "^v\\d+\\.\\d+\\.\\d+$"
+  interval: 5000
+  debounce: 2000
+```
 
 ### Host resolution (CLI)
 
